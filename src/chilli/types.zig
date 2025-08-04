@@ -73,9 +73,9 @@ pub const PositionalArg = struct {
 };
 
 test "types: Flag.evaluateValueType" {
-    const bool_flag = Flag{ .name = "b", .type = .Bool, .default_value = .{.Bool=false}, .description = "" };
-    const int_flag = Flag{ .name = "i", .type = .Int, .default_value = .{.Int=0}, .description = "" };
-    const string_flag = Flag{ .name = "s", .type = .String, .default_value = .{.String=""}, .description = "" };
+    const bool_flag = Flag{ .name = "b", .type = .Bool, .default_value = .{ .Bool = false }, .description = "" };
+    const int_flag = Flag{ .name = "i", .type = .Int, .default_value = .{ .Int = 0 }, .description = "" };
+    const string_flag = Flag{ .name = "s", .type = .String, .default_value = .{ .String = "" }, .description = "" };
 
     // Bool
     try std.testing.expect((try bool_flag.evaluateValueType("true")).Bool);

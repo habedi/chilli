@@ -89,7 +89,7 @@ test "context: getFlag" {
     try cmd.addFlag(.{ .name = "verbose", .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
     try cmd.addFlag(.{ .name = "count", .type = .Int, .default_value = .{ .Int = 42 }, .description = "" });
 
-    try cmd.parsed_flags.append(.{.name = "verbose", .value = .{.Bool = true}});
+    try cmd.parsed_flags.append(.{ .name = "verbose", .value = .{ .Bool = true } });
 
     const ctx = CommandContext{
         .allocator = allocator,

@@ -317,7 +317,7 @@ test "command: findFlag traverses parents" {
     var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
     try root.addSubcommand(sub);
 
-    try root.addFlag(.{ .name = "global", .type = .Bool, .default_value = .{.Bool=false}, .description = "" });
+    try root.addFlag(.{ .name = "global", .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
 
     try std.testing.expect(sub.findFlag("global") != null);
 }

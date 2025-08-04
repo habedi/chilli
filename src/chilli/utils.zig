@@ -80,7 +80,7 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
 
         var current_width: usize = 0;
         if (flag.shortcut) |s| {
-            try writer.print("  -{s}, --{s}", .{s, flag.name});
+            try writer.print("  -{s}, --{s}", .{ s, flag.name });
             current_width += 5 + s.len + flag.name.len;
         } else {
             try writer.print("      --{s}", .{flag.name});

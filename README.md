@@ -1,11 +1,10 @@
-## Chilli
-
 <div align="center">
   <picture>
     <img alt="Chilli Logo" src="logo.svg" height="25%" width="25%">
   </picture>
-</div>
 <br>
+
+<h2>Chilli</h2>
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/chilli/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/actions/workflows/tests.yml)
 [![Code Coverage](https://img.shields.io/codecov/c/github/habedi/chilli?label=coverage&style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/chilli)
@@ -14,53 +13,185 @@
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
 
+A mini framework for creating command line applications in Zig
+
+</div>
+
 ---
 
-Chilli is a command line interface (CLI) framework for Zig that provides tools for building and managing command line
-applications in Zig.
+Chilli is a lightweight command line interface (CLI) framework for Zig programming language.
+Its goal is to make it easy to create structured, maintainable, and user-friendly CLIs with minimal boilerplate,
+while being small and fast, and not get in the way of your application logic.
 
 > [!IMPORTANT]
-> This library is in very early stages of development and is not yet ready for serious use.
-> The API is not stable and may change frequently.
-> Additionally, it's not thoroughly tested or optimized so use it at your own risk.
+> Chilli is in the early stages of development and is not yet ready for serious use.
+> The API is not stable and may change without notice.
 
-### Features
+### Feature Checklist
 
-* **Modular and Clean Architecture**: The library is built with a clear separation of concerns, dividing core logic into
-  separate modules for commands, parsing, context, and utilities.
-* **Intuitive Command Structure**: Easily build nested command-and-subcommand hierarchies, inspired by popular
-  frameworks like Cobra and `git`.
-* **Type-Safe Flag Access**: Retrieve flag values with compile-time type validation. The API prevents type-mismatches
-  and helps catch bugs early.
-* **Flexible Argument Handling**: Supports a variety of command-line arguments:
-    * Flags with long names (`--flag-name`).
-    * Short flags (`-f`) with support for basic grouping.
-    * Positional arguments, which can be marked as `required` or `optional`.
-* **Automatic Help Generation**: `chilli` automatically generates formatted help messages for commands, including usage,
-  flags, arguments, and grouped subcommands.
-* **Integrated Default Values**: Easily set default values for flags of any supported type (`bool`, `int`, `string`) to
-  simplify user code and configuration.
-* **Contextual State Management**: Pass a single, user-defined data struct (e.g., application configuration or state) to
-  the root command, making it accessible from any subcommand's execution function.
-* **Fast and Efficient Parsing**: The argument parsing engine uses a single pass over command-line arguments for minimal
-  overhead.
-* **Rich Output Support**: Includes a built-in module for ANSI escape codes, enabling you to add color and styling to
-  your CLI output.
+-   [x] **Command Structure**
+    -   [x] Nested commands and subcommands
+    -   [x] Command aliases
+    -   [x] Persistent flags (flags on parent commands are available to children)
+
+-   [x] **Argument & Flag Parsing**
+    -   [x] Long flags (`--verbose`), short flags (`-v`), and grouped boolean flags (`-vf`)
+    -   [x] Type-safe flag access (like `ctx.getFlag("count", i64)`)
+    - [~] Positional Arguments (supports required & optional; no variadic support yet)
+
+-   [x] **Help & Usage Output**
+    -   [x] Automatic and context-aware help generation (`--help`)
+    -   [x] Clean, aligned help output for commands, flags, and arguments
+    - [~] Version display (shows in help text; no automatic `--version` flag)
+
+-   [x] **Developer Experience**
+    -   [x] Context data for passing application state
+    -   [ ] Named access for positional arguments (access is currently by index)
+    -   [ ] Deprecation notices for commands or flags
+    -   [ ] Built-in TUI components (like spinners and progress bars)
 
 ---
 
 ### Getting Started
 
-To be added.
+You can use Chilli by adding it as a dependency to your Zig project.
+The Zig build system will download and cache it automatically.
+
+#### 1. Add Chilli to `build.zig.zon`
+
+First, declare the `chilli` dependency in your `build.zig.zon` file.
+You will need to provide the URL to a specific release tarball and its content hash.
+
+```zig
+.{
+    .name = "your-cli-app",
+    .version = "0.1.0",
+    .minimum_zig_version = "0.14.1",
+    .dependencies = .{
+        .chilli = .{
+            // URL for the latest commit on the main branch
+        .url = "https://github.com/habedi/chilli/archive/main.tar.gz",
+            // The hash of that specific commit's content
+        .hash = "1220...", // Replace with the actual hash
+    },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
+```
+
+> [!NOTE]
+> To get the correct `.hash` value, you can first put a dummy value (like `"122000"`) and run the `zig build` command.
+> The compiler will fail, but it will print the expected hash value for you to copy and paste into the dependencies
+> section to replace the dummy value.
+
+#### 2. Use the Dependency in `build.zig`
+
+Next, modify your `build.zig` file to get the dependency from the builder and make it available to your executable as a
+module.
+
+```zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const exe = b.addExecutable(.{
+        .name = "your-cli-app",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // 1. Get the dependency object from the builder
+    const chilli_dep = b.dependency("chilli", .{});
+
+    // 2. Get chilli's top-level module
+    const chilli_module = chilli_dep.module("chilli");
+
+    // 3. Add the module to your executable so you can @import("chilli")
+    exe.root_module.addImport("chilli", chilli_module);
+
+    b.installArtifact(exe);
+}
+```
+
+#### 3. Write Your Application Code
+
+Finally, you can `@import("chilli")` and start building your application in `src/main.zig`.
+
+```zig
+const std = @import("std");
+const chilli = @import("chilli");
+
+// A function for our command to execute
+fn greet(ctx: chilli.CommandContext) !void {
+    // getFlag is type-safe and panics on type mismatch
+    const name = ctx.getFlag("name", []const u8);
+    const excitement = ctx.getFlag("excitement", u32);
+
+    std.print("Hello, {s}", .{name});
+    var i: u32 = 0;
+    while (i < excitement) : (i += 1) {
+        std.print("!", .{});
+    }
+    std.print("\n", .{});
+}
+
+pub fn main() anyerror!void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Create the root command for your application
+    var root_cmd = try chilli.Command.init(allocator, .{
+        .name = "your-cli-app",
+        .description = "A new CLI built with Chilli",
+        .version = "v0.1.0",
+        .exec = greet, // The function to run
+    });
+    defer root_cmd.deinit();
+
+    // Add flags to the command
+    try root_cmd.addFlag(.{
+        .name = "name",
+        .shortcut = "n",
+        .description = "The name to greet",
+        .type = .String,
+        .default_value = .{ .String = "World" },
+    });
+    try root_cmd.addFlag(.{
+        .name = "excitement",
+        .type = .Int,
+        .description = "How excited to be",
+        .default_value = .{ .Int = 1 },
+    });
+
+    // Hand control over to the framework
+    try root_cmd.run(null);
+}
+```
+
+### Examples
+
+| File                                      | Description                                                        |
+|-------------------------------------------|--------------------------------------------------------------------|
+| [simple_cli.zig](examples/simple_cli.zig) | A simple CLI application that shows basic command and flag parsing |
+
+-----
 
 ### Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to make a contribution.
 
-### Logo
-
-The logo is from [SVG Repo](https://www.svgrepo.com/svg/45673/chili-pepper).
-
 ### License
 
 Chilli is licensed under the MIT License ([LICENSE](LICENSE)).
+
+### Acknowledgements
+
+* The logo is from [SVG Repo](https://www.svgrepo.com/svg/45673/chili-pepper).
