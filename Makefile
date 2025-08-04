@@ -14,9 +14,9 @@ DOC_OUT       := docs/api/
 COVERAGE_DIR  := coverage
 BINARY_NAME   := example
 RELEASE_MODE := ReleaseSmall
-TEST_FLAGS := --summary all --verbose
+TEST_FLAGS := --summary all #--verbose
 
-# Automatically find all example names (e.g., btree_map, trie, etc.)
+# Automatically find all example names
 EXAMPLES      := $(patsubst %.zig,%,$(notdir $(wildcard examples/*.zig)))
 # CHANGED: Default is now "all"
 EXAMPLE       ?= all
@@ -92,7 +92,7 @@ install-deps: ## Install system dependencies (for Debian-based systems)
 
 coverage: test ## Generate code coverage report
 	@echo "Generating coverage report..."
-	@kcov --include-pattern=src --verify coverage-out-btree-map zig-out/bin/btree_map
+	@kcov --include-pattern=src --verify coverage-out zig-out/bin/example_cli
 
 setup-hooks: ## Install Git hooks (pre-commit and pre-push)
 	@echo "Setting up Git hooks..."

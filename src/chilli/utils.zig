@@ -1,7 +1,10 @@
+//! A collection of utility functions for formatting help messages and parsing values.
 const std = @import("std");
 const command = @import("command.zig");
 const types = @import("types.zig");
+const errors = @import("errors.zig");
 
+/// A collection of ANSI escape codes for styling terminal output.
 pub const styles = struct {
     // Reset
     pub const RESET = "\x1b[0m";
@@ -22,18 +25,19 @@ pub const styles = struct {
 };
 
 /// Parses a boolean value from a string, case-insensitively.
-/// Accepts "true" or "false".
-/// Returns an error for any other input.
-pub fn parseBool(input: []const u8) !bool {
+///
+/// Accepts "true" or "false". Returns `errors.Error.InvalidBoolString` for any other input.
+pub fn parseBool(input: []const u8) errors.Error!bool {
     if (std.ascii.eqlIgnoreCase(input, "true")) {
         return true;
     }
     if (std.ascii.eqlIgnoreCase(input, "false")) {
         return false;
     }
-    return error.InvalidBoolString;
+    return errors.Error.InvalidBoolString;
 }
 
+/// (Internal) Prints a list of commands with aligned descriptions.
 pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (commands) |cmd| {
@@ -57,6 +61,7 @@ pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void
     }
 }
 
+/// (Internal) Prints a command's flags with aligned descriptions.
 pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (cmd.flags.items) |flag| {
@@ -75,7 +80,7 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
 
         var current_width: usize = 0;
         if (flag.shortcut) |s| {
-            try writer.print("  -{s}, --{s}", .{ s, flag.name });
+            try writer.print("  -{s}, --{s}", .{s, flag.name});
             current_width += 5 + s.len + flag.name.len;
         } else {
             try writer.print("      --{s}", .{flag.name});
@@ -94,6 +99,7 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
     }
 }
 
+/// (Internal) Prints a command's positional arguments with aligned descriptions.
 pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (cmd.positional_args.items) |arg| {
@@ -112,6 +118,7 @@ pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) 
     }
 }
 
+/// (Internal) Prints the full usage line for a command, including its parents.
 pub fn printUsageLine(cmd: *const command.Command, writer: anytype) !void {
     var parents = std.ArrayList(*command.Command).init(cmd.allocator);
     defer parents.deinit();
@@ -164,6 +171,7 @@ const StringSortContext = struct {
     }
 };
 
+/// (Internal) Prints subcommands grouped by section and sorted alphabetically.
 pub fn printSubcommands(cmd: *const command.Command, writer: anytype) !void {
     var section_map = std.StringHashMap(std.ArrayList(*command.Command)).init(cmd.allocator);
     defer {
@@ -193,4 +201,15 @@ pub fn printSubcommands(cmd: *const command.Command, writer: anytype) !void {
         try printAlignedCommands(cmds_list.items, writer);
         try writer.print("\n", .{});
     }
+}
+
+test "utils: parseBool" {
+    try std.testing.expect(try parseBool("true"));
+    try std.testing.expect(try parseBool("TRUE"));
+    try std.testing.expect(!(try parseBool("false")));
+    try std.testing.expect(!(try parseBool("FALSE")));
+    try std.testing.expectError(errors.Error.InvalidBoolString, parseBool(""));
+    try std.testing.expectError(errors.Error.InvalidBoolString, parseBool("t"));
+    try std.testing.expectError(errors.Error.InvalidBoolString, parseBool("f"));
+    try std.testing.expectError(errors.Error.InvalidBoolString, parseBool("1"));
 }
