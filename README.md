@@ -42,7 +42,7 @@ while being small and fast, and not get in the way of your application logic.
 -   [x] **Help & Usage Output**
     -   [x] Automatic and context-aware help generation (`--help`)
     -   [x] Clean, aligned help output for commands, flags, and arguments
-    - [~] Version display (shows in help text; no automatic `--version` flag)
+    - [x] Version display (automatic `--version` flag)
 
 -   [x] **Developer Experience**
     -   [x] Context data for passing application state

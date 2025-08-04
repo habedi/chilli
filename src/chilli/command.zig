@@ -139,6 +139,19 @@ pub const Command = struct {
             }
         }
 
+        // NEW: Automatically handle the --version flag.
+        // It checks for the flag on the current command (so `sub-cmd --version` works),
+        // but it always prints the version of the root command (`self`).
+        if (current_cmd.getFlagValue("version")) |flag_val| {
+            if (flag_val.Bool) {
+                if (self.options.version) |v| {
+                    const stdout = std.io.getStdOut().writer();
+                    try stdout.print("{s}\n", .{v});
+                }
+                return; // Exit immediately after printing version.
+            }
+        }
+
         const ctx = context.CommandContext{
             .allocator = self.allocator,
             .command = current_cmd,
@@ -158,6 +171,17 @@ pub const Command = struct {
     ///
     /// Propagates any unhandled errors from `execute` or the `exec` function.
     pub fn run(self: *Command, data: ?*anyopaque) !void {
+        // NEW: If a version string is provided, add a --version flag to the root command.
+        if (self.options.version != null) {
+            // This can only fail on OOM, which we propagate.
+            try self.addFlag(.{
+                .name = "version",
+                .description = "Print version information and exit",
+                .type = .Bool,
+                .default_value = .{ .Bool = false },
+            });
+        }
+
         var args = try std.process.argsAlloc(self.allocator);
         defer std.process.argsFree(self.allocator, args);
 
@@ -175,6 +199,7 @@ pub const Command = struct {
                 errors.Error.InvalidBoolString => try stderr.print("{s}Error: Invalid value for boolean flag, expected 'true' or 'false'.{s}\n", .{ red, reset }),
                 error.InvalidCharacter => try stderr.print("{s}Error: Invalid character in integer value.{s}\n", .{ red, reset }),
                 error.Overflow => try stderr.print("{s}Error: Integer value is too large or too small.{s}\n", .{ red, reset }),
+                error.OutOfMemory => try stderr.print("{s}Error: Out of memory.{s}\n", .{ red, reset }),
                 else => {
                     return err;
                 },
@@ -303,10 +328,10 @@ test "command: subcommands" {
     const allocator = std.testing.allocator;
     var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
     defer root.deinit();
-    const sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
+    var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
 
-    try root.addSubcommand(sub);
-    try std.testing.expectEqual(sub, root.findSubcommand("sub"));
+    try root.addSubcommand(&sub);
+    try std.testing.expectEqual(&sub, root.findSubcommand("sub"));
     try std.testing.expectEqual(root, sub.parent);
 }
 
@@ -315,7 +340,7 @@ test "command: findFlag traverses parents" {
     var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
     defer root.deinit();
     var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
-    try root.addSubcommand(sub);
+    try root.addSubcommand(&sub);
 
     try root.addFlag(.{ .name = "global", .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
 
@@ -331,8 +356,8 @@ test "command: execute" {
     const allocator = std.testing.allocator;
     var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = trackingExec });
     defer root.deinit();
-    const sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = trackingExec });
-    try root.addSubcommand(sub);
+    var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = trackingExec });
+    try root.addSubcommand(&sub);
 
     exec_called_on = null;
     try root.execute(&[_][]const u8{}, null);
