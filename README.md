@@ -54,39 +54,19 @@ while being small and fast, and not get in the way of your application logic.
 
 ### Getting Started
 
-You can use Chilli by adding it as a dependency to your Zig project.
-The Zig build system will download and cache it automatically.
+You can add Chilli to your project with a single command.
+The Zig build system will download it, verify its contents, and add it to your `build.zig.zon` manifest automatically.
 
-#### 1. Add Chilli to `build.zig.zon`
+#### 1. Fetch the Dependency
 
-First, declare the `chilli` dependency in your `build.zig.zon` file.
-You will need to provide the URL to a specific release tarball and its content hash.
+Run the following command in the root directory of your project:
 
-```zig
-.{
-    .name = "your-cli-app",
-    .version = "0.1.0",
-    .minimum_zig_version = "0.14.1",
-    .dependencies = .{
-        .chilli = .{
-            // URL for the latest commit on the main branch
-        .url = "https://github.com/habedi/chilli/archive/main.tar.gz",
-            // The hash of that specific commit's content
-        .hash = "1220...", // Replace with the actual hash
-    },
-    },
-    .paths = .{
-        "build.zig",
-        "build.zig.zon",
-        "src",
-    },
-}
+```sh
+zig fetch --save=chilli "https://github.com/habedi/chilli/archive/main.tar.gz"
 ```
 
-> [!NOTE]
-> To get the correct `.hash` value, you can first put a dummy value (like `"122000"`) and run the `zig build` command.
-> The compiler will fail, but it will print the expected hash value for you to copy and paste into the dependencies
-> section to replace the dummy value.
+This command fetches the latest version from the `main` branch and adds it to your `build.zig.zon` under the name
+`chilli`.
 
 #### 2. Use the Dependency in `build.zig`
 
@@ -130,7 +110,6 @@ const chilli = @import("chilli");
 
 // A function for our command to execute
 fn greet(ctx: chilli.CommandContext) !void {
-    // getFlag is type-safe and panics on type mismatch
     const name = ctx.getFlag("name", []const u8);
     const excitement = ctx.getFlag("excitement", u32);
 
