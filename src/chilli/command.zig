@@ -104,16 +104,19 @@ pub const Command = struct {
     }
 
     /// Parses arguments and executes the appropriate command.
-    ///
     /// This is a lower-level function than `run`. It finds the correct subcommand to execute
     /// based on the input arguments, parses all flags and positional values, validates them,
     /// and then invokes the command's `exec` function.
     ///
     /// - `user_args`: A slice of strings representing the command-line arguments (excluding the program name).
-    /// - `data`: An optional `anyopaque` pointer to user-defined context data, accessible from any command's `exec` function.
+    /// - `data`: An optional `anyopaque` pointer to user-defined context data.
     ///
-    /// Returns a `chilli.Error` on parsing or validation failure, or any error returned from the command's `exec` function.
+    /// Returns `chilli.Error` on parsing or validation failure, or any error from an `exec` function.
     pub fn execute(self: *Command, user_args: []const []const u8, data: ?*anyopaque) anyerror!void {
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
+
         var arg_iterator = parser.ArgIterator.init(user_args);
 
         var current_cmd: *Command = self;
@@ -139,21 +142,18 @@ pub const Command = struct {
             }
         }
 
-        // NEW: Automatically handle the --version flag.
-        // It checks for the flag on the current command (so `sub-cmd --version` works),
-        // but it always prints the version of the root command (`self`).
         if (current_cmd.getFlagValue("version")) |flag_val| {
             if (flag_val.Bool) {
                 if (self.options.version) |v| {
                     const stdout = std.io.getStdOut().writer();
                     try stdout.print("{s}\n", .{v});
                 }
-                return; // Exit immediately after printing version.
+                return;
             }
         }
 
         const ctx = context.CommandContext{
-            .allocator = self.allocator,
+            .allocator = arena_allocator,
             .command = current_cmd,
             .data = data,
         };
@@ -171,9 +171,7 @@ pub const Command = struct {
     ///
     /// Propagates any unhandled errors from `execute` or the `exec` function.
     pub fn run(self: *Command, data: ?*anyopaque) !void {
-        // NEW: If a version string is provided, add a --version flag to the root command.
         if (self.options.version != null) {
-            // This can only fail on OOM, which we propagate.
             try self.addFlag(.{
                 .name = "version",
                 .description = "Print version information and exit",
@@ -250,13 +248,7 @@ pub const Command = struct {
         return null;
     }
 
-    /// Retrieves the parsed value of a flag for the current command.
-    ///
-    /// This method is for internal use; prefer `CommandContext.getFlag` inside an `exec` function.
-    ///
-    /// - `name`: The name of the flag.
-    ///
-    /// Returns the `FlagValue` union if the flag was parsed from the command line, otherwise `null`.
+    /// Retrieves the parsed value of a flag for the current command. For internal use.
     pub fn getFlagValue(self: *const Command, name: []const u8) ?types.FlagValue {
         for (self.parsed_flags.items) |flag| {
             if (std.mem.eql(u8, flag.name, name)) return flag.value;
@@ -264,22 +256,13 @@ pub const Command = struct {
         return null;
     }
 
-    /// Retrieves the parsed value of a positional argument by its index.
-    ///
-    /// This method is for internal use; prefer `CommandContext.getPositional` inside an `exec` function.
-    ///
-    /// - `index`: The zero-based index of the positional argument.
-    ///
-    /// Returns the argument value as a string slice if it exists, otherwise `null`.
+    /// Retrieves the parsed value of a positional argument by its index. For internal use.
     pub fn getPositionalValue(self: *const Command, index: usize) ?[]const u8 {
         if (index < self.parsed_positionals.items.len) return self.parsed_positionals.items[index];
         return null;
     }
 
     /// Prints a formatted help message for the command to standard output.
-    ///
-    /// The help message includes the command's description, version, usage line,
-    /// arguments, flags, and any subcommands grouped by section.
     pub fn printHelp(self: *const Command) !void {
         const stdout = std.io.getStdOut().writer();
         try stdout.print("{s}{s}{s}\n", .{ utils.styles.BOLD, self.options.description, utils.styles.RESET });

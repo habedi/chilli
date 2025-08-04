@@ -6,25 +6,28 @@ const command = @import("command.zig");
 /// Provides access to command-line data within a command's execution function (`exec`).
 /// An instance of `CommandContext` is passed to every `exec` function.
 pub const CommandContext = struct {
+    /// The allocator for this execution context. For operations that require allocation,
+    /// like retrieving environment variables, this allocator should be used. Memory is
+    /// valid for the lifetime of the `exec` call.
     allocator: std.mem.Allocator,
+    /// A pointer to the command that is being executed.
     command: *command.Command,
+    /// A pointer to optional, user-defined data passed to the `run` function.
     data: ?*anyopaque,
 
     /// Retrieves the value of a flag by name with compile-time type checking.
     ///
-    /// This function is the primary way to access flag values. It first checks for a value
-    /// provided by the user on the command line. If not found, it returns the flag's
-    /// defined default value.
-    ///
-    /// The function uses `comptime` parameters to enforce type safety. If the requested
-    /// type `T` does not match the flag's defined type, it will cause a panic at runtime
-    /// or a compile error. This prevents type-mismatch bugs.
+    /// This function is the primary way to access flag values. It resolves the value
+    /// using the following precedence:
+    /// 1. Value provided on the command line.
+    /// 2. Value from the environment variable specified in the flag's `env_var` field (if any).
+    /// 3. The flag's defined default value.
     ///
     /// - `name`: The comptime string name of the flag to retrieve.
     /// - `T`: The comptime type to retrieve the flag value as (e.g., `bool`, `i64`, `[]const u8`).
     ///
     /// Panics if the flag is not defined, or if the requested type `T` does not match the
-    /// flag's actual type.
+    /// flag's actual type. Also panics if an environment variable provides a malformed value.
     pub fn getFlag(self: *const CommandContext, comptime name: []const u8, comptime T: type) T {
         if (self.command.getFlagValue(name)) |parsed_value| {
             return switch (T) {
@@ -38,6 +41,26 @@ pub const CommandContext = struct {
         }
 
         const flag_def = self.command.findFlag(name) orelse std.debug.panic("Attempted to access an undefined flag: '{s}'", .{name});
+
+        if (flag_def.env_var) |env_name| {
+            if (std.process.getEnvVarOwned(self.allocator, env_name) catch null) |env_val_str| {
+                const env_value = flag_def.evaluateValueType(env_val_str) catch |err| {
+                    std.debug.panic(
+                        \\Error parsing environment variable "{s}" for flag "{s}": {s}
+                    , .{ env_name, name, @errorName(err) });
+                };
+
+                return switch (T) {
+                    bool => if (env_value == .Bool) env_value.Bool else std.debug.panic("Type mismatch for flag '{s}' from env '{s}': expected bool, got {s}", .{ name, env_name, @tagName(env_value) }),
+                    []const u8 => if (env_value == .String) env_value.String else std.debug.panic("Type mismatch for flag '{s}' from env '{s}': expected string, got {s}", .{ name, env_name, @tagName(env_value) }),
+                    else => switch (@typeInfo(T)) {
+                        .Int => if (env_value == .Int) @intCast(env_value.Int) else std.debug.panic("Type mismatch for flag '{s}' from env '{s}': expected int, got {s}", .{ name, env_name, @tagName(env_value) }),
+                        else => @compileError("Unsupported type for flag '" ++ name ++ "': " ++ @typeName(T)),
+                    },
+                };
+            }
+        }
+
         const default_val = flag_def.default_value;
 
         return switch (T) {

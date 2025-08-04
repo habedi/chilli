@@ -12,7 +12,7 @@ pub fn main() anyerror!void {
     const allocator = gpa.allocator();
 
     var app_context = AppContext{
-        .config_path = "/etc/chilli.conf",
+        .config_path = "", // Will be populated by the root command's exec
         .is_dry_run = false,
     };
 
@@ -34,6 +34,18 @@ pub fn main() anyerror!void {
     };
     try root_command.addFlag(root_dry_run_flag);
 
+    // This flag demonstrates environment variable support.
+    // The value's precedence is: --config flag > CHILLI_APP_CONFIG env var > default value.
+    const config_flag = chilli.Flag{
+        .name = "config",
+        .shortcut = "c",
+        .description = "Path to the configuration file",
+        .type = .String,
+        .default_value = .{ .String = "/etc/chilli.conf" },
+        .env_var = "CHILLI_APP_CONFIG",
+    };
+    try root_command.addFlag(config_flag);
+
     const run_options = chilli.CommandOptions{
         .name = "run",
         .description = "Runs a task with a given name.",
@@ -41,9 +53,7 @@ pub fn main() anyerror!void {
         .section = "Core Commands",
     };
     var run_command = try chilli.Command.init(allocator, run_options);
-    // NOTE: Do not deinit a subcommand directly. The parent command's deinit will handle
-    // the cleanup of all its children.
-    // defer run_command.deinit(); // This was the cause of the double free.
+    try root_command.addSubcommand(run_command);
 
     const verbose_flag = chilli.Flag{
         .name = "verbose",
@@ -61,30 +71,33 @@ pub fn main() anyerror!void {
     };
     try run_command.addPositional(task_arg);
 
-    try root_command.addSubcommand(run_command);
-
     try root_command.run(&app_context);
 }
 
 fn rootExec(ctx: chilli.CommandContext) anyerror!void {
     const app_ctx = ctx.getContextData(AppContext).?;
+
     app_ctx.is_dry_run = ctx.getFlag("dry-run", bool);
+    app_ctx.config_path = ctx.getFlag("config", []const u8);
 
     std.debug.print("Welcome to chilli-app!\n", .{});
-    std.debug.print("Dry run mode is: {any}\n", .{app_ctx.is_dry_run});
-    std.debug.print("Using config file: {s}\n", .{app_ctx.config_path});
+    std.debug.print("  Dry run mode is: {any}\n", .{app_ctx.is_dry_run});
+    std.debug.print("  Using config file: {s}\n\n", .{app_ctx.config_path});
     try ctx.command.printHelp();
+    std.debug.print("\nTo test env var support, try:\n", .{});
+    std.debug.print("  export CHILLI_APP_CONFIG=/tmp/my_config.conf; ./zig-out/bin/simple_cli\n", .{});
 }
 
 fn runExec(ctx: chilli.CommandContext) anyerror!void {
     const is_verbose = ctx.getFlag("verbose", bool);
-    const task_name = ctx.getPositional(0) orelse "default";
+    const task_name = ctx.getPositional(0) orelse unreachable;
 
     std.debug.print("Running task '{s}'...\n", .{task_name});
     if (is_verbose) {
-        std.debug.print("Verbose logging enabled.\n", .{});
+        std.debug.print("  Verbose logging enabled.\n", .{});
     }
 
     const app_ctx = ctx.getContextData(AppContext).?;
-    std.debug.print("Global dry run setting: {any}\n", .{app_ctx.is_dry_run});
+    std.debug.print("  Global config path: {s}\n", .{app_ctx.config_path});
+    std.debug.print("  Global dry run setting: {any}\n", .{app_ctx.is_dry_run});
 }

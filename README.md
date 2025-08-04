@@ -42,10 +42,11 @@ while being small and fast, and not get in the way of your application logic.
 -   [x] **Help & Usage Output**
     -   [x] Automatic and context-aware help generation (`--help`)
     -   [x] Clean, aligned help output for commands, flags, and arguments
-    - [x] Version display (automatic `--version` flag)
+    -   [x] Version display (automatic `--version` flag)
 
 -   [x] **Developer Experience**
     -   [x] Context data for passing application state
+    -   [x] Reading options from environment variables
     -   [ ] Named access for positional arguments (access is currently by index)
     -   [ ] Deprecation notices for commands or flags
     -   [ ] Built-in TUI components (like spinners and progress bars)

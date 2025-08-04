@@ -50,6 +50,9 @@ pub const Flag = struct {
     default_value: FlagValue,
     /// If `true`, the flag will not be shown in help messages.
     hidden: bool = false,
+    /// If set, the framework will check this environment variable for a value
+    /// if the flag is not provided on the command line.
+    env_var: ?[]const u8 = null,
 
     /// Parses a raw string value into the appropriate `FlagValue` type for this flag.
     /// Returns `errors.Error` if the string cannot be parsed into the flag's target type.
