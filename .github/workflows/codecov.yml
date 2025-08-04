@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  codecov:
     runs-on: ubuntu-22.04
 
     steps:

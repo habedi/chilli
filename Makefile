@@ -1,33 +1,25 @@
-# Generic Makefile for Zig projects
-
-# Load environment variables from .env file
-ifneq (,$(wildcard ./.env))
-    include .env
-    export $(shell sed 's/=.*//' .env)
-else
-    $(warning .env file not found. Environment variables not loaded.)
-endif
-
 ################################################################################
 # Configuration and Variables
 ################################################################################
-ZIG           ?= zig
-ZIG_VERSION   := $(shell $(ZIG) version)
+ZIG    ?= $(shell which zig || echo ~/.local/share/zig/0.14.1/zig)
 BUILD_TYPE    ?= Debug
 BUILD_OPTS      = -Doptimize=$(BUILD_TYPE)
 JOBS          ?= $(shell nproc || echo 2)
 SRC_DIR       := src
-TEST_DIR      := tests
+EXAMPLES_DIR  := examples
 BUILD_DIR     := zig-out
 CACHE_DIR     := .zig-cache
-DOC_SRC       := src/root.zig
+DOC_SRC       := src/lib.zig
 DOC_OUT       := docs/api/
 COVERAGE_DIR  := coverage
-BINARY_NAME   := template-zig-project
-BINARY_PATH   := $(BUILD_DIR)/bin/$(BINARY_NAME)
-TEST_EXECUTABLE := $(BUILD_DIR)/bin/test
-PREFIX        ?= /usr/local
+BINARY_NAME   := example
 RELEASE_MODE := ReleaseSmall
+TEST_FLAGS := --summary all --verbose
+
+# Automatically find all example names (e.g., btree_map, trie, etc.)
+EXAMPLES      := $(patsubst %.zig,%,$(notdir $(wildcard examples/*.zig)))
+# CHANGED: Default is now "all"
+EXAMPLE       ?= all
 
 SHELL         := /usr/bin/env bash
 .SHELLFLAGS   := -eu -o pipefail -c
@@ -36,27 +28,40 @@ SHELL         := /usr/bin/env bash
 # Targets
 ################################################################################
 
-.PHONY: all build rebuild run test cov lint format doc clean install-deps release help coverage
+.PHONY: all help build rebuild run test release clean lint format doc install-deps coverage setup-hooks test-hooks
 .DEFAULT_GOAL := help
 
 help: ## Show the help messages for all targets
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
+	@echo "Usage: make <target>"
+	@echo ""
+	@echo "Targets:"
+	@grep -E '^[a-zA-Z_-]+:.*## .*$$' Makefile | \
+	awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 all: build test lint doc  ## build, test, lint, and doc
 
 build: ## Build project (Mode=$(BUILD_TYPE))
 	@echo "Building project in $(BUILD_TYPE) mode with $(JOBS) concurrent jobs..."
-	$(ZIG) build $(BUILD_OPTS) -j$(JOBS)
+	@$(ZIG) build $(BUILD_OPTS) -j$(JOBS)
 
 rebuild: clean build  ## clean and build
 
-run: build  ## Run the main application
-	@echo "Running $(BINARY_NAME)..."
-	$(ZIG) build run $(BUILD_OPTS) --
+run: ## Run an example (e.g. 'make run EXAMPLE=trie' or 'make run' for all)
+	@if [ "$(EXAMPLE)" = "all" ]; then \
+		echo "--> Running all examples..."; \
+		for ex in $(EXAMPLES); do \
+			echo ""; \
+			echo "--> Running example: $$ex"; \
+			$(ZIG) build run-$$ex $(BUILD_OPTS); \
+		done; \
+	else \
+		echo "--> Running example: $(EXAMPLE)"; \
+		$(ZIG) build run-$(EXAMPLE) $(BUILD_OPTS); \
+	fi
 
-test: ## Run tests and generate coverage data
-	@echo "Running tests with coverage enabled..."
-	$(ZIG) build test $(BUILD_OPTS) -Denable-coverage=true -j$(JOBS)
+test: ## Run tests
+	@echo "Running tests..."
+	@$(ZIG) build test $(BUILD_OPTS) -j$(JOBS) $(TEST_FLAGS)
 
 release: ## Build in Release mode
 	@echo "Building the project in Release mode..."
@@ -64,40 +69,41 @@ release: ## Build in Release mode
 
 clean: ## Remove docs, build artifacts, and cache directories
 	@echo "Removing build artifacts, cache, generated docs, and coverage files..."
-	rm -rf $(BUILD_DIR) $(CACHE_DIR) $(DOC_OUT) *.profraw $(COVERAGE_DIR)
+	@rm -rf $(BUILD_DIR) $(CACHE_DIR) $(DOC_OUT) *.profraw $(COVERAGE_DIR) public
 
 lint: ## Check code style and formatting of Zig files
 	@echo "Running code style checks..."
-	$(ZIG) fmt --check $(SRC_DIR) $(TEST_DIR)
+	@$(ZIG) fmt --check $(SRC_DIR) $(EXAMPLES_DIR)
 
 format: ## Format Zig files
 	@echo "Formatting Zig files..."
-	$(ZIG) fmt .
+	@$(ZIG) fmt .
 
 doc: ## Generate API documentation
 	@echo "Generating documentation from $(DOC_SRC) to $(DOC_OUT)..."
-	mkdir -p $(DOC_OUT)
-	@if $(ZIG) doc --help > /dev/null 2>&1; then \
-	  $(ZIG) doc $(DOC_SRC) --output-dir $(DOC_OUT); \
-	else \
-	  $(ZIG) test -femit-docs $(DOC_SRC); \
-	  for f in docs/*; do \
-		base=$$(basename "$$f"); \
-		if [ "$$base" = "assets" ] || [ "$$base" = "api" ]; then \
-		  continue; \
-		fi; \
-		mv "$$f" $(DOC_OUT)/; \
-	  done; \
-	fi
+	@mkdir -p $(DOC_OUT)
+	@$(ZIG) test $(DOC_SRC) -femit-docs=$(DOC_OUT)
 
 install-deps: ## Install system dependencies (for Debian-based systems)
 	@echo "Installing system dependencies..."
-	sudo apt-get update
-	sudo apt-get install -y make llvm snapd
-	sudo snap install zig  --beta --classic # Use `--edge --classic` to install the latest version
+	@sudo apt-get update
+	@sudo apt-get install -y make llvm snapd
+	@sudo snap install zig --beta --classic
 
-coverage: ## Generate code coverage report
-	@echo "Building tests with coverage instrumentation..."
-	@zig build test -Denable-coverage=true
+coverage: test ## Generate code coverage report
 	@echo "Generating coverage report..."
-	@kcov --include-pattern=src --verify coverage-out zig-out/bin/test-root
+	@kcov --include-pattern=src --verify coverage-out-btree-map zig-out/bin/btree_map
+
+setup-hooks: ## Install Git hooks (pre-commit and pre-push)
+	@echo "Setting up Git hooks..."
+	@if ! command -v pre-commit &> /dev/null; then \
+	   echo "pre-commit not found. Please install it using 'pip install pre-commit'"; \
+	   exit 1; \
+	fi
+	@pre-commit install --hook-type pre-commit
+	@pre-commit install --hook-type pre-push
+	@pre-commit install-hooks
+
+test-hooks: ## Test Git hooks on all files
+	@echo "Testing Git hooks..."
+	@pre-commit run --all-files --show-diff-on-failure
