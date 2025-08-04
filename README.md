@@ -13,7 +13,7 @@
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
 
-A mini framework for creating command line applications in Zig
+A microframework for creating command line applications in Zig
 
 </div>
 
