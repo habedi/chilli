@@ -16,7 +16,6 @@ pub const ArgIterator = struct {
     }
 
     /// Peeks at the next argument without consuming it.
-    /// Returns `null` if no more arguments are available.
     pub fn peek(self: *const ArgIterator) ?[]const u8 {
         if (self.index >= self.args.len) return null;
         return self.args[self.index];
@@ -34,91 +33,151 @@ pub const ParsedFlag = struct {
     value: types.FlagValue,
 };
 
-/// Parses command-line arguments from an iterator, populating the command's
-/// `parsed_flags` and `parsed_positionals` fields.
-/// This function handles long flags (`--name`), short flags (`-n`), grouped flags (`-nv`),
-/// flags with values (`--name=value` or `-n value`), and positional arguments.
-///
-/// It returns `errors.Error` on parsing failures, such as encountering an unknown flag or a
-/// missing value for a flag that requires one.
+/// Parses command-line arguments from an iterator.
 pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.Error!void {
+    var parsing_flags = true;
     while (iterator.peek()) |arg| {
-        if (std.mem.startsWith(u8, arg, "--")) {
-            // Long flag (--flag, --flag=value)
-            const arg_body = arg[2..];
-            var flag_name: []const u8 = arg_body;
-            var value: ?[]const u8 = null;
-
-            if (std.mem.indexOfScalar(u8, arg_body, '=')) |eq_idx| {
-                flag_name = arg_body[0..eq_idx];
-                value = arg_body[eq_idx + 1 ..];
+        if (parsing_flags) {
+            if (std.mem.eql(u8, arg, "--")) {
+                parsing_flags = false;
+                iterator.next();
+                continue;
             }
 
-            const flag = cmd.findFlag(flag_name) orelse return errors.Error.UnknownFlag;
+            if (std.mem.startsWith(u8, arg, "--")) {
+                const arg_body = arg[2..];
+                var flag_name: []const u8 = arg_body;
+                var value: ?[]const u8 = null;
 
-            if (flag.type == .Bool) {
-                const flag_value = if (value) |v| try utils.parseBool(v) else true;
-                try cmd.parsed_flags.append(.{
-                    .name = flag_name,
-                    .value = .{ .Bool = flag_value },
-                });
-                iterator.next();
-            } else {
-                iterator.next();
-                const val = value orelse iterator.peek() orelse return errors.Error.MissingFlagValue;
-                if (value == null) {
-                    iterator.next();
+                if (std.mem.indexOfScalar(u8, arg_body, '=')) |eq_idx| {
+                    flag_name = arg_body[0..eq_idx];
+                    value = arg_body[eq_idx + 1 ..];
                 }
-                try cmd.parsed_flags.append(.{
-                    .name = flag_name,
-                    .value = try flag.evaluateValueType(val),
-                });
-            }
-        } else if (std.mem.startsWith(u8, arg, "-") and arg.len > 1) {
-            // Short flag (-f, -fvalue, -f value, -fv)
-            const shortcuts = arg[1..];
-            iterator.next();
 
-            for (shortcuts, 0..) |shortcut, i| {
-                const flag = cmd.findFlag(&[_]u8{shortcut}) orelse return errors.Error.UnknownFlag;
+                const flag = cmd.findFlag(flag_name) orelse return errors.Error.UnknownFlag;
 
                 if (flag.type == .Bool) {
-                    try cmd.parsed_flags.append(.{ .name = flag.name, .value = .{ .Bool = true } });
+                    const flag_value = if (value) |v| try utils.parseBool(v) else true;
+                    try cmd.parsed_flags.append(.{
+                        .name = flag_name,
+                        .value = .{ .Bool = flag_value },
+                    });
+                    iterator.next();
                 } else {
-                    const value: []const u8 = if (shortcuts.len > i + 1)
-                        shortcuts[i + 1 ..]
-                    else
-                        iterator.peek() orelse return errors.Error.MissingFlagValue;
-
-                    if (shortcuts.len <= i + 1) {
+                    iterator.next();
+                    const val = value orelse iterator.peek() orelse return errors.Error.MissingFlagValue;
+                    if (value == null) {
                         iterator.next();
                     }
-
                     try cmd.parsed_flags.append(.{
-                        .name = flag.name,
-                        .value = try flag.evaluateValueType(value),
+                        .name = flag_name,
+                        .value = try flag.evaluateValueType(val),
                     });
-                    break;
                 }
+                continue;
             }
-        } else {
-            try cmd.parsed_positionals.append(arg);
-            iterator.next();
+
+            if (std.mem.startsWith(u8, arg, "-") and arg.len > 1) {
+                const shortcuts = arg[1..];
+                iterator.next();
+
+                for (shortcuts, 0..) |shortcut, i| {
+                    const flag = cmd.findFlag(&[_]u8{shortcut}) orelse return errors.Error.UnknownFlag;
+
+                    if (flag.type == .Bool) {
+                        try cmd.parsed_flags.append(.{ .name = flag.name, .value = .{ .Bool = true } });
+                    } else {
+                        var value: []const u8 = undefined;
+                        var value_from_next_arg = false;
+
+                        if (shortcuts.len > i + 1) {
+                            value = shortcuts[i + 1 ..];
+                            if (value.len > 0 and value[0] == '=') {
+                                value = value[1..];
+                            }
+                        } else {
+                            value = iterator.peek() orelse return errors.Error.MissingFlagValue;
+                            value_from_next_arg = true;
+                        }
+
+                        if (value_from_next_arg) {
+                            iterator.next();
+                        }
+
+                        try cmd.parsed_flags.append(.{
+                            .name = flag.name,
+                            .value = try flag.evaluateValueType(value),
+                        });
+                        break;
+                    }
+                }
+                continue;
+            }
         }
+
+        try cmd.parsed_positionals.append(arg);
+        iterator.next();
     }
 }
 
 /// Validates that all required positional arguments have been provided and that there are
-/// no excess arguments.
-///
-/// Returns `errors.Error.MissingRequiredArgument` or `errors.Error.TooManyArguments` on failure.
+/// no excess arguments unless a variadic argument is defined.
 pub fn validateArgs(cmd: *command.Command) errors.Error!void {
-    for (cmd.positional_args.items, 0..) |expected_arg, i| {
-        if (expected_arg.is_required and i >= cmd.parsed_positionals.items.len) {
-            return errors.Error.MissingRequiredArgument;
+    const num_defined = cmd.positional_args.items.len;
+    const num_parsed = cmd.parsed_positionals.items.len;
+
+    if (num_defined == 0) {
+        if (num_parsed > 0) return errors.Error.TooManyArguments;
+        return;
+    }
+
+    const last_arg_def = cmd.positional_args.items[num_defined - 1];
+    const has_variadic = last_arg_def.variadic;
+
+    var required_count: usize = 0;
+    for (cmd.positional_args.items) |arg_def| {
+        if (arg_def.is_required) {
+            required_count += 1;
         }
     }
-    if (cmd.parsed_positionals.items.len > cmd.positional_args.items.len) {
+    if (num_parsed < required_count) {
+        return errors.Error.MissingRequiredArgument;
+    }
+
+    if (!has_variadic and num_parsed > num_defined) {
         return errors.Error.TooManyArguments;
+    }
+}
+
+const context = @import("context.zig");
+fn dummyExec(_: context.CommandContext) !void {}
+
+test "parser: short flag with equals" {
+    const allocator = std.testing.allocator;
+    var cmd = try command.Command.init(allocator, .{
+        .name = "test",
+        .description = "",
+        .exec = dummyExec,
+    });
+    defer cmd.deinit();
+
+    try cmd.addFlag(.{
+        .name = "output",
+        .shortcut = "o",
+        .description = "Output file",
+        .type = .String,
+        .default_value = .{ .String = "" },
+    });
+
+    var it = ArgIterator.init(&[_][]const u8{"-o=test.txt"});
+    try parseArgsAndFlags(&cmd, &it);
+
+    try std.testing.expectEqual(1, cmd.parsed_flags.items.len);
+    try std.testing.expectEqualStrings("output", cmd.parsed_flags.items[0].name);
+
+    const value = cmd.parsed_flags.items[0].value;
+    switch (value) {
+        .String => |s| try std.testing.expectEqualStrings("test.txt", s),
+        else => std.testing.panic("Expected string value, got {any}", .{value}),
     }
 }

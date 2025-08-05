@@ -23,14 +23,12 @@ pub const Command = struct {
     parsed_positionals: std.ArrayList([]const u8),
 
     /// Initializes a new command.
-    ///
-    /// A default `--help, -h` flag is automatically added to every command.
-    ///
-    /// - `allocator`: The allocator to use for the command and its children.
-    /// - `options`: A `CommandOptions` struct defining the command's behavior and metadata.
-    ///
-    /// Returns an error if memory allocation fails.
+    /// Panics if the provided command name is empty.
     pub fn init(allocator: std.mem.Allocator, options: types.CommandOptions) !*Command {
+        if (options.name.len == 0) {
+            std.debug.panic("Command name cannot be empty.", .{});
+        }
+
         const command = try allocator.create(Command);
         command.* = Command{
             .options = options,
@@ -56,9 +54,6 @@ pub const Command = struct {
     }
 
     /// Deinitializes the command and all its subcommands recursively.
-    ///
-    /// This function should only be called on the root command. It frees all memory
-    /// allocated by the command, its flags, arguments, and all of its subcommands.
     pub fn deinit(self: *Command) void {
         for (self.subcommands.items) |sub| {
             sub.deinit();
@@ -72,46 +67,52 @@ pub const Command = struct {
     }
 
     /// Adds a subcommand to this command.
-    ///
-    /// The parent command takes ownership of the subcommand's memory. `deinit` should
-    /// not be called on the subcommand directly; it will be deinitialized when the
-    /// parent's `deinit` is called.
-    ///
-    /// - `sub`: A pointer to the command to be added as a subcommand.
-    ///
-    /// Returns an error if memory allocation for the subcommands list fails.
+    /// Returns `error.CommandAlreadyHasParent` if the subcommand has already been
+    /// added to another command, to prevent double-frees during deinitialization.
     pub fn addSubcommand(self: *Command, sub: *Command) !void {
+        if (sub.parent != null) {
+            return errors.Error.CommandAlreadyHasParent;
+        }
         sub.parent = self;
         try self.subcommands.append(sub);
     }
 
     /// Adds a flag to the command.
-    ///
-    /// - `flag`: The `Flag` struct to add.
-    ///
-    /// Returns an error if memory allocation for the flags list fails.
+    /// Panics if the flag name is empty or the shortcut is not a single byte.
     pub fn addFlag(self: *Command, flag: types.Flag) !void {
+        if (flag.name.len == 0) {
+            std.debug.panic("Flag name cannot be empty.", .{});
+        }
+        if (flag.shortcut) |s| {
+            if (s.len != 1) {
+                std.debug.panic("Flag shortcut for '{s}' must be a single byte, but got '{s}'", .{ flag.name, s });
+            }
+        }
         try self.flags.append(flag);
     }
 
     /// Adds a positional argument to the command's definition.
-    ///
-    /// - `arg`: The `PositionalArg` struct to add.
-    ///
-    /// Returns an error if memory allocation for the arguments list fails.
+    /// Returns `error.VariadicArgumentNotLastError` if you attempt to add an
+    /// argument after one that is marked as variadic.
+    /// Panics if the argument name is empty.
     pub fn addPositional(self: *Command, arg: types.PositionalArg) !void {
+        if (arg.name.len == 0) {
+            std.debug.panic("Positional argument name cannot be empty.", .{});
+        }
+        // An optional argument must have a default value, unless it's variadic.
+        if (!arg.is_required and !arg.variadic and arg.default_value == null) {
+            std.debug.panic("Optional positional argument '{s}' must have a default_value.", .{arg.name});
+        }
+        if (self.positional_args.items.len > 0) {
+            const last_arg = self.positional_args.items[self.positional_args.items.len - 1];
+            if (last_arg.variadic) {
+                return errors.Error.VariadicArgumentNotLastError;
+            }
+        }
         try self.positional_args.append(arg);
     }
 
     /// Parses arguments and executes the appropriate command.
-    /// This is a lower-level function than `run`. It finds the correct subcommand to execute
-    /// based on the input arguments, parses all flags and positional values, validates them,
-    /// and then invokes the command's `exec` function.
-    ///
-    /// - `user_args`: A slice of strings representing the command-line arguments (excluding the program name).
-    /// - `data`: An optional `anyopaque` pointer to user-defined context data.
-    ///
-    /// Returns `chilli.Error` on parsing or validation failure, or any error from an `exec` function.
     pub fn execute(self: *Command, user_args: []const []const u8, data: ?*anyopaque) anyerror!void {
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         defer arena.deinit();
@@ -121,6 +122,7 @@ pub const Command = struct {
 
         var current_cmd: *Command = self;
         while (arg_iterator.peek()) |arg| {
+            // Stop parsing for subcommands if a flag is encountered.
             if (std.mem.startsWith(u8, arg, "-")) {
                 break;
             }
@@ -162,14 +164,6 @@ pub const Command = struct {
     }
 
     /// The main entry point for running the CLI application.
-    ///
-    /// This function automatically allocates and retrieves command-line arguments from the
-    /// process, then calls `execute`. It provides friendly, colored error messages for common
-    /// parsing and validation errors and exits the process with a non-zero status code.
-    ///
-    /// - `data`: An optional `anyopaque` pointer to user-defined context data.
-    ///
-    /// Propagates any unhandled errors from `execute` or the `exec` function.
     pub fn run(self: *Command, data: ?*anyopaque) !void {
         if (self.options.version != null) {
             try self.addFlag(.{
@@ -195,6 +189,9 @@ pub const Command = struct {
                 errors.Error.MissingRequiredArgument => try stderr.print("{s}Error: Missing a required argument.{s}\n", .{ red, reset }),
                 errors.Error.TooManyArguments => try stderr.print("{s}Error: Too many arguments provided.{s}\n", .{ red, reset }),
                 errors.Error.InvalidBoolString => try stderr.print("{s}Error: Invalid value for boolean flag, expected 'true' or 'false'.{s}\n", .{ red, reset }),
+                errors.Error.VariadicArgumentNotLastError => try stderr.print("{s}Error: Cannot add another positional argument after a variadic one.{s}\n", .{ red, reset }),
+                errors.Error.CommandAlreadyHasParent => try stderr.print("{s}Error: A command was added to multiple parents.{s}\n", .{ red, reset }),
+                errors.Error.IntegerValueOutOfRange => try stderr.print("{s}Error: An integer flag value was provided out of the allowed range.{s}\n", .{ red, reset }),
                 error.InvalidCharacter => try stderr.print("{s}Error: Invalid character in integer value.{s}\n", .{ red, reset }),
                 error.Overflow => try stderr.print("{s}Error: Integer value is too large or too small.{s}\n", .{ red, reset }),
                 error.OutOfMemory => try stderr.print("{s}Error: Out of memory.{s}\n", .{ red, reset }),
@@ -207,10 +204,6 @@ pub const Command = struct {
     }
 
     /// Finds a direct subcommand by its name, alias, or shortcut.
-    ///
-    /// - `name`: The string identifier for the subcommand.
-    ///
-    /// Returns a pointer to the `Command` if found, otherwise `null`.
     pub fn findSubcommand(self: *Command, name: []const u8) ?*Command {
         for (self.subcommands.items) |sub| {
             if (std.mem.eql(u8, sub.options.name, name)) return sub;
@@ -227,13 +220,6 @@ pub const Command = struct {
     }
 
     /// Finds a flag definition by its name or shortcut, searching upwards through parent commands.
-    ///
-    /// This allows flags defined on a parent command (e.g., a global `--verbose` flag on the root)
-    /// to be accessible from any subcommand.
-    ///
-    /// - `name_or_shortcut`: The name (e.g., "verbose") or shortcut (e.g., "v") of the flag.
-    ///
-    /// Returns a pointer to the `Flag` definition if found, otherwise `null`.
     pub fn findFlag(self: *Command, name_or_shortcut: []const u8) ?*types.Flag {
         var current: ?*Command = self;
         while (current) |cmd| {
@@ -248,7 +234,7 @@ pub const Command = struct {
         return null;
     }
 
-    /// Retrieves the parsed value of a flag for the current command. For internal use.
+    /// (Internal) Retrieves the parsed value of a flag for the current command.
     pub fn getFlagValue(self: *const Command, name: []const u8) ?types.FlagValue {
         for (self.parsed_flags.items) |flag| {
             if (std.mem.eql(u8, flag.name, name)) return flag.value;
@@ -256,7 +242,7 @@ pub const Command = struct {
         return null;
     }
 
-    /// Retrieves the parsed value of a positional argument by its index. For internal use.
+    /// (Internal) Retrieves the parsed value of a positional argument by its index.
     pub fn getPositionalValue(self: *const Command, index: usize) ?[]const u8 {
         if (index < self.parsed_positionals.items.len) return self.parsed_positionals.items[index];
         return null;
@@ -295,6 +281,21 @@ pub const Command = struct {
 
 fn dummyExec(_: context.CommandContext) !void {}
 
+test "command: addPositional validation" {
+    const allocator = std.testing.allocator;
+    var cmd = try Command.init(allocator, .{ .name = "test", .description = "", .exec = dummyExec });
+    defer cmd.deinit();
+
+    try cmd.addPositional(.{ .name = "a", .is_required = true });
+    try cmd.addPositional(.{ .name = "b", .variadic = true });
+
+    // Should fail to add another argument after a variadic one.
+    try std.testing.expectError(
+        error.VariadicArgumentNotLastError,
+        cmd.addPositional(.{ .name = "c", .is_required = true }),
+    );
+}
+
 test "command: init and deinit" {
     const allocator = std.testing.allocator;
     var cmd = try Command.init(allocator, .{
@@ -311,11 +312,11 @@ test "command: subcommands" {
     const allocator = std.testing.allocator;
     var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
     defer root.deinit();
-    var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
+    const sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
 
-    try root.addSubcommand(&sub);
-    try std.testing.expectEqual(&sub, root.findSubcommand("sub"));
-    try std.testing.expectEqual(root, sub.parent);
+    try root.addSubcommand(sub);
+    try std.testing.expect(root.findSubcommand("sub").? == sub);
+    try std.testing.expect(sub.parent.? == root);
 }
 
 test "command: findFlag traverses parents" {
@@ -323,7 +324,7 @@ test "command: findFlag traverses parents" {
     var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
     defer root.deinit();
     var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
-    try root.addSubcommand(&sub);
+    try root.addSubcommand(sub);
 
     try root.addFlag(.{ .name = "global", .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
 
@@ -339,8 +340,8 @@ test "command: execute" {
     const allocator = std.testing.allocator;
     var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = trackingExec });
     defer root.deinit();
-    var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = trackingExec });
-    try root.addSubcommand(&sub);
+    const sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = trackingExec });
+    try root.addSubcommand(sub);
 
     exec_called_on = null;
     try root.execute(&[_][]const u8{}, null);

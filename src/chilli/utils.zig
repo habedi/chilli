@@ -6,15 +6,10 @@ const errors = @import("errors.zig");
 
 /// A collection of ANSI escape codes for styling terminal output.
 pub const styles = struct {
-    // Reset
     pub const RESET = "\x1b[0m";
-
-    // Text Styles
     pub const BOLD = "\x1b[1m";
     pub const DIM = "\x1b[2m";
     pub const UNDERLINE = "\x1b[4m";
-
-    // Foreground Colors
     pub const RED = "\x1b[31m";
     pub const GREEN = "\x1b[32m";
     pub const YELLOW = "\x1b[33m";
@@ -26,7 +21,7 @@ pub const styles = struct {
 
 /// Parses a boolean value from a string, case-insensitively.
 ///
-/// Accepts "true" or "false". Returns `errors.Error.InvalidBoolString` for any other input.
+/// Accepts "true" or "false". Any other value will result in `Error.InvalidBoolString`.
 pub fn parseBool(input: []const u8) errors.Error!bool {
     if (std.ascii.eqlIgnoreCase(input, "true")) {
         return true;
@@ -43,7 +38,7 @@ pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void
     for (commands) |cmd| {
         var len = cmd.options.name.len;
         if (cmd.options.shortcut) |s| {
-            len += s.len + 3; // ` (s)`
+            len += s.len + 3; // " (s)"
         }
         if (len > max_width) max_width = len;
     }
@@ -66,25 +61,25 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (cmd.flags.items) |flag| {
         if (flag.hidden) continue;
-        var len = 2 + flag.name.len;
-        if (flag.shortcut) |s| {
-            len += s.len + 3; // `-s, `
-        } else {
-            len += 5; // `     `
-        }
+        const len: usize = if (flag.shortcut) |s|
+            // "  -s, --name"
+            s.len + flag.name.len + 7
+        else
+            // "      --name"
+            flag.name.len + 8;
         if (len > max_width) max_width = len;
     }
 
     for (cmd.flags.items) |flag| {
         if (flag.hidden) continue;
 
-        var current_width: usize = 0;
+        var current_width: usize = undefined;
         if (flag.shortcut) |s| {
             try writer.print("  -{s}, --{s}", .{ s, flag.name });
-            current_width += 5 + s.len + flag.name.len;
+            current_width = s.len + flag.name.len + 7;
         } else {
             try writer.print("      --{s}", .{flag.name});
-            current_width += 6 + flag.name.len;
+            current_width = flag.name.len + 8;
         }
 
         try writer.writeByteNTimes(' ', max_width - current_width + 2);
@@ -110,7 +105,10 @@ pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) 
         try writer.print("  {s}", .{arg.name});
         try writer.writeByteNTimes(' ', max_width - arg.name.len + 2);
         try writer.print("{s}", .{arg.description});
-        if (arg.is_required) {
+
+        if (arg.variadic) {
+            try writer.print(" (variadic)\n", .{});
+        } else if (arg.is_required) {
             try writer.print(" (required)\n", .{});
         } else {
             try writer.print(" (optional)\n", .{});
@@ -145,7 +143,9 @@ pub fn printUsageLine(cmd: *const command.Command, writer: anytype) !void {
     }
 
     for (cmd.positional_args.items) |arg| {
-        if (arg.is_required) {
+        if (arg.variadic) {
+            try writer.print(" [{s}...]", .{arg.name});
+        } else if (arg.is_required) {
             try writer.print(" <{s}>", .{arg.name});
         } else {
             try writer.print(" [{s}]", .{arg.name});

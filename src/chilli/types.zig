@@ -30,7 +30,8 @@ pub const CommandOptions = struct {
     aliases: ?[]const []const u8 = null,
     /// An optional single-character shortcut for the command.
     shortcut: ?[]const u8 = null,
-    /// An optional version string for the command, displayed in its help message.
+    /// An optional version string for the application. If provided on the root command,
+    /// an automatic `--version` flag will be available.
     version: ?[]const u8 = null,
     /// The name of the section under which this command should be grouped in a parent's help message.
     section: []const u8 = "Commands",
@@ -55,7 +56,6 @@ pub const Flag = struct {
     env_var: ?[]const u8 = null,
 
     /// Parses a raw string value into the appropriate `FlagValue` type for this flag.
-    /// Returns `errors.Error` if the string cannot be parsed into the flag's target type.
     pub fn evaluateValueType(self: *const Flag, value: []const u8) errors.Error!FlagValue {
         return switch (self.type) {
             .Bool => FlagValue{ .Bool = try utils.parseBool(value) },
@@ -67,12 +67,28 @@ pub const Flag = struct {
 
 /// Defines a positional argument for a command.
 pub const PositionalArg = struct {
-    /// The name of the argument, used in help messages (e.g., "filename").
+    /// The name of the argument, used in help messages and for named access.
     name: []const u8,
     /// A short description of the argument's purpose.
     description: []const u8,
+    /// The data type of the argument's value.
+    type: FlagType = .String,
     /// If `true`, the argument must be provided by the user.
     is_required: bool = false,
+    /// The default value for the argument if it's optional and not provided.
+    default_value: ?FlagValue = null,
+    /// If `true`, this argument will capture all remaining positional arguments.
+    /// Only the last positional argument for a command can be variadic.
+    variadic: bool = false,
+
+    /// Parses a raw string value into the appropriate `FlagValue` type for this argument.
+    pub fn evaluateValueType(self: *const PositionalArg, value: []const u8) errors.Error!FlagValue {
+        return switch (self.type) {
+            .Bool => FlagValue{ .Bool = try utils.parseBool(value) },
+            .Int => FlagValue{ .Int = try std.fmt.parseInt(i64, value, 10) },
+            .String => FlagValue{ .String = value },
+        };
+    }
 };
 
 test "types: Flag.evaluateValueType" {

@@ -3,7 +3,6 @@ const chilli = @import("chilli");
 
 const AppContext = struct {
     config_path: []const u8,
-    is_dry_run: bool,
 };
 
 pub fn main() anyerror!void {
@@ -13,7 +12,6 @@ pub fn main() anyerror!void {
 
     var app_context = AppContext{
         .config_path = "", // Will be populated by the root command's exec
-        .is_dry_run = false,
     };
 
     const root_options = chilli.CommandOptions{
@@ -25,20 +23,8 @@ pub fn main() anyerror!void {
     var root_command = try chilli.Command.init(allocator, root_options);
     defer root_command.deinit();
 
-    const root_dry_run_flag = chilli.Flag{
-        .name = "dry-run",
-        .shortcut = "d",
-        .description = "Performs a dry run without making any changes",
-        .type = .Bool,
-        .default_value = .{ .Bool = false },
-    };
-    try root_command.addFlag(root_dry_run_flag);
-
-    // This flag demonstrates environment variable support.
-    // The value's precedence is: --config flag > CHILLI_APP_CONFIG env var > default value.
     const config_flag = chilli.Flag{
         .name = "config",
-        .shortcut = "c",
         .description = "Path to the configuration file",
         .type = .String,
         .default_value = .{ .String = "/etc/chilli.conf" },
@@ -46,58 +32,58 @@ pub fn main() anyerror!void {
     };
     try root_command.addFlag(config_flag);
 
+    // --- `run` subcommand with variadic arguments ---
     const run_options = chilli.CommandOptions{
         .name = "run",
-        .description = "Runs a task with a given name.",
+        .description = "Runs a task against a list of files.",
         .exec = runExec,
-        .section = "Core Commands",
     };
     var run_command = try chilli.Command.init(allocator, run_options);
     try root_command.addSubcommand(run_command);
 
-    const verbose_flag = chilli.Flag{
-        .name = "verbose",
-        .shortcut = "v",
-        .description = "Enables verbose logging.",
-        .type = .Bool,
-        .default_value = .{ .Bool = false },
-    };
-    try run_command.addFlag(verbose_flag);
-
-    const task_arg = chilli.PositionalArg{
+    // A required, typed positional argument
+    try run_command.addPositional(.{
         .name = "task-name",
         .description = "The name of the task to run.",
         .is_required = true,
-    };
-    try run_command.addPositional(task_arg);
+        .type = .String, // Explicitly a string
+    });
+    // A variadic positional argument to capture all remaining values
+    try run_command.addPositional(.{
+        .name = "files",
+        .description = "A list of files to process.",
+        .variadic = true,
+    });
 
     try root_command.run(&app_context);
 }
 
 fn rootExec(ctx: chilli.CommandContext) anyerror!void {
     const app_ctx = ctx.getContextData(AppContext).?;
+    const config_slice = try ctx.getFlag("config", []const u8);
 
-    app_ctx.is_dry_run = ctx.getFlag("dry-run", bool);
-    app_ctx.config_path = ctx.getFlag("config", []const u8);
+    // The slice from getFlag can point to temporary memory. To safely store it,
+    // it must be copied. The context's allocator is valid for this exec call.
+    app_ctx.config_path = try ctx.allocator.dupe(u8, config_slice);
 
     std.debug.print("Welcome to chilli-app!\n", .{});
-    std.debug.print("  Dry run mode is: {any}\n", .{app_ctx.is_dry_run});
     std.debug.print("  Using config file: {s}\n\n", .{app_ctx.config_path});
     try ctx.command.printHelp();
-    std.debug.print("\nTo test env var support, try:\n", .{});
-    std.debug.print("  export CHILLI_APP_CONFIG=/tmp/my_config.conf; ./zig-out/bin/simple_cli\n", .{});
 }
 
 fn runExec(ctx: chilli.CommandContext) anyerror!void {
-    const is_verbose = ctx.getFlag("verbose", bool);
-    const task_name = ctx.getPositional(0) orelse unreachable;
+    // Access positional arguments by name, now with type safety
+    const task_name = try ctx.getArg("task-name", []const u8);
+    const files = ctx.getArgs("files"); // Variadic arguments remain string slices
 
     std.debug.print("Running task '{s}'...\n", .{task_name});
-    if (is_verbose) {
-        std.debug.print("  Verbose logging enabled.\n", .{});
-    }
 
-    const app_ctx = ctx.getContextData(AppContext).?;
-    std.debug.print("  Global config path: {s}\n", .{app_ctx.config_path});
-    std.debug.print("  Global dry run setting: {any}\n", .{app_ctx.is_dry_run});
+    if (files.len == 0) {
+        std.debug.print("No files provided to process.\n", .{});
+    } else {
+        std.debug.print("Processing {d} files:\n", .{files.len});
+        for (files) |file| {
+            std.debug.print("  - {s}\n", .{file});
+        }
+    }
 }

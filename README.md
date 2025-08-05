@@ -37,7 +37,7 @@ while being small and fast, and not get in the way of your application logic.
 -   [x] **Argument & Flag Parsing**
     -   [x] Long flags (`--verbose`), short flags (`-v`), and grouped boolean flags (`-vf`)
     -   [x] Type-safe flag access (like `ctx.getFlag("count", i64)`)
-    - [~] Positional Arguments (supports required & optional; no variadic support yet)
+    -   [x] Positional Arguments (supports required and optional)
 
 -   [x] **Help & Usage Output**
     -   [x] Automatic and context-aware help generation (`--help`)
