@@ -13,85 +13,50 @@
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
 
-A mini framework for creating command line applications in Zig
+A microframework for creating command-line applications in Zig
 
 </div>
 
 ---
 
-Chilli is a lightweight command line interface (CLI) framework for Zig programming language.
+Chilli is a lightweight command-line interface (CLI) framework for the Zig programming language.
 Its goal is to make it easy to create structured, maintainable, and user-friendly CLIs with minimal boilerplate,
-while being small and fast, and not get in the way of your application logic.
+while being small and fast, and not getting in the way of your application logic.
+
+### Features
+
+- Provides a simple, declarative API for building CLI applications
+- Supports nested commands, subcommands, and aliases
+- Provides type-safe parsing for flags, positional arguments, and environment variables
+- Supports generating automatic `--help` and `--version` output with custom sections
+- Uses a shared context to pass application state
+- Written in pure Zig with no external dependencies
 
 > [!IMPORTANT]
-> Chilli is in the early stages of development and is not yet ready for serious use.
+> Chilli is in early development and is not yet ready for serious use.
 > The API is not stable and may change without notice.
-
-### Feature Checklist
-
--   [x] **Command Structure**
-    -   [x] Nested commands and subcommands
-    -   [x] Command aliases
-    -   [x] Persistent flags (flags on parent commands are available to children)
-
--   [x] **Argument & Flag Parsing**
-    -   [x] Long flags (`--verbose`), short flags (`-v`), and grouped boolean flags (`-vf`)
-    -   [x] Type-safe flag access (like `ctx.getFlag("count", i64)`)
-    - [~] Positional Arguments (supports required & optional; no variadic support yet)
-
--   [x] **Help & Usage Output**
-    -   [x] Automatic and context-aware help generation (`--help`)
-    -   [x] Clean, aligned help output for commands, flags, and arguments
-    - [~] Version display (shows in help text; no automatic `--version` flag)
-
--   [x] **Developer Experience**
-    -   [x] Context data for passing application state
-    -   [ ] Named access for positional arguments (access is currently by index)
-    -   [ ] Deprecation notices for commands or flags
-    -   [ ] Built-in TUI components (like spinners and progress bars)
+> Please use the [issues page](https://github.com/habedi/chilli/issues) to report bugs or request features.
 
 ---
 
 ### Getting Started
 
-You can use Chilli by adding it as a dependency to your Zig project.
-The Zig build system will download and cache it automatically.
+You can add Chilli to your project and start using it by following the steps below.
 
-#### 1. Add Chilli to `build.zig.zon`
+#### Installation
 
-First, declare the `chilli` dependency in your `build.zig.zon` file.
-You will need to provide the URL to a specific release tarball and its content hash.
+Run the following command in the root directory of your project to download Chilli:
 
-```zig
-.{
-    .name = "your-cli-app",
-    .version = "0.1.0",
-    .minimum_zig_version = "0.14.1",
-    .dependencies = .{
-        .chilli = .{
-            // URL for the latest commit on the main branch
-        .url = "https://github.com/habedi/chilli/archive/main.tar.gz",
-            // The hash of that specific commit's content
-        .hash = "1220...", // Replace with the actual hash
-    },
-    },
-    .paths = .{
-        "build.zig",
-        "build.zig.zon",
-        "src",
-    },
-}
+```sh
+zig fetch --save=chilli "https://github.com/habedi/chilli/archive/<branch_or_tag>.tar.gz"
 ```
 
-> [!NOTE]
-> To get the correct `.hash` value, you can first put a dummy value (like `"122000"`) and run the `zig build` command.
-> The compiler will fail, but it will print the expected hash value for you to copy and paste into the dependencies
-> section to replace the dummy value.
+Replace `<branch_or_tag>` with the desired branch or tag, like `main` or `v0.1.0`.
+This command will download Chilli and add it to Zig's global cache and update your project's `build.zig.zon` file.
 
-#### 2. Use the Dependency in `build.zig`
+#### Adding to Build Script
 
-Next, modify your `build.zig` file to get the dependency from the builder and make it available to your executable as a
-module.
+Next, modify your `build.zig` file to make Chilli available to your build target as a module.
 
 ```zig
 const std = @import("std");
@@ -120,9 +85,9 @@ pub fn build(b: *std.Build) void {
 }
 ```
 
-#### 3. Write Your Application Code
+#### Using Chilli in an Application
 
-Finally, you can `@import("chilli")` and start building your application in `src/main.zig`.
+Finally, you can `@import("chilli")` and start using it in your Zig application.
 
 ```zig
 const std = @import("std");
@@ -130,9 +95,8 @@ const chilli = @import("chilli");
 
 // A function for our command to execute
 fn greet(ctx: chilli.CommandContext) !void {
-    // getFlag is type-safe and panics on type mismatch
-    const name = ctx.getFlag("name", []const u8);
-    const excitement = ctx.getFlag("excitement", u32);
+    const name = try ctx.getFlag("name", []const u8);
+    const excitement = try ctx.getFlag("excitement", u32);
 
     std.print("Hello, {s}", .{name});
     var i: u32 = 0;
@@ -159,7 +123,7 @@ pub fn main() anyerror!void {
     // Add flags to the command
     try root_cmd.addFlag(.{
         .name = "name",
-        .shortcut = "n",
+        .shortcut = 'n',
         .description = "The name to greet",
         .type = .String,
         .default_value = .{ .String = "World" },
@@ -176,13 +140,54 @@ pub fn main() anyerror!void {
 }
 ```
 
+---
+
+### Documentation
+
+You can use the `make doc` command to generate the API documentation for Chilli.
+This will generate HTML documentation in the [docs/api](docs/api/index.html) directory, which you can serve locally with
+`make serve-docs` and view in your web browser at `http://localhost:8000/index.html`.
+
 ### Examples
 
-| File                                      | Description                                                        |
-|-------------------------------------------|--------------------------------------------------------------------|
-| [simple_cli.zig](examples/simple_cli.zig) | A simple CLI application that shows basic command and flag parsing |
+Here’s your table with an added **Index** column:
 
------
+| **#** | **File**                                                    | **Description**                                                     |
+|-------|-------------------------------------------------------------|---------------------------------------------------------------------|
+| 1     | [e1\_simple\_cli.zig](examples/e1_simple_cli.zig)           | A simple CLI application that shows basic command and flag parsing  |
+| 2     | [e2\_nested\_commands.zig](examples/e2_nested_commands.zig) | A CLI application with nested commands and subcommands              |
+| 3     | [e3\_help\_output.zig](examples/e3_help_output.zig)         | Example demonstrates automatic help output and usage information    |
+| 4     | [e4\_flags\_and\_args.zig](examples/e4_flags_and_args.zig)  | Example shows how to use flags and positional arguments in commands |
+| 5     | [e5\_custom\_sections.zig](examples/e5_custom_sections.zig) | Example demonstrates grouping subcommands into custom sections      |
+| 6     | [e6\_advanced\_cli.zig](examples/e6_advanced_cli.zig)       | More advanced example that combines multiple features of Chilli     |
+
+### Feature Checklist
+
+-   [x] **Command Structure**
+    -   [x] Nested commands and subcommands
+    -   [x] Command aliases and single-character shortcuts
+    -   [x] Persistent flags (flags on parent commands are available to children)
+
+-   [x] **Argument & Flag Parsing**
+    -   [x] Long flags (`--verbose`), short flags (`-v`), and grouped boolean flags (`-vf`)
+    -   [x] Positional Arguments (supports required, optional, and variadic)
+    -   [x] Type-safe access for flags and arguments (e.g., `ctx.getFlag("count", i64)`)
+    -   [x] Reading flag values from environment variables
+
+-   [x] **Help & Usage Output**
+    -   [x] Automatic and context-aware `--help` flag
+    -   [x] Automatic `--version` flag
+    -   [x] Clean, aligned help output for commands, flags, and arguments
+    -   [x] Grouping subcommands into custom sections
+
+-   [x] **Developer Experience**
+    -   [x] Simple, declarative API for building commands
+    -   [x] Named access for all flags and arguments
+    -   [x] Shared context data for passing application state
+    -   [ ] Deprecation notices for commands or flags
+    -   [ ] Built-in TUI components (like spinners and progress bars)
+
+---
 
 ### Contributing
 

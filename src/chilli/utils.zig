@@ -6,15 +6,10 @@ const errors = @import("errors.zig");
 
 /// A collection of ANSI escape codes for styling terminal output.
 pub const styles = struct {
-    // Reset
     pub const RESET = "\x1b[0m";
-
-    // Text Styles
     pub const BOLD = "\x1b[1m";
     pub const DIM = "\x1b[2m";
     pub const UNDERLINE = "\x1b[4m";
-
-    // Foreground Colors
     pub const RED = "\x1b[31m";
     pub const GREEN = "\x1b[32m";
     pub const YELLOW = "\x1b[33m";
@@ -26,7 +21,7 @@ pub const styles = struct {
 
 /// Parses a boolean value from a string, case-insensitively.
 ///
-/// Accepts "true" or "false". Returns `errors.Error.InvalidBoolString` for any other input.
+/// Accepts "true" or "false". Any other value will result in `Error.InvalidBoolString`.
 pub fn parseBool(input: []const u8) errors.Error!bool {
     if (std.ascii.eqlIgnoreCase(input, "true")) {
         return true;
@@ -37,13 +32,13 @@ pub fn parseBool(input: []const u8) errors.Error!bool {
     return errors.Error.InvalidBoolString;
 }
 
-/// (Internal) Prints a list of commands with aligned descriptions.
+/// Prints a list of commands with aligned descriptions.
 pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (commands) |cmd| {
         var len = cmd.options.name.len;
-        if (cmd.options.shortcut) |s| {
-            len += s.len + 3; // ` (s)`
+        if (cmd.options.shortcut != null) {
+            len += 4; // " (c)"
         }
         if (len > max_width) max_width = len;
     }
@@ -52,8 +47,8 @@ pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void
         try writer.print("  {s}", .{cmd.options.name});
         var current_width = cmd.options.name.len;
         if (cmd.options.shortcut) |s| {
-            try writer.print(" ({s})", .{s});
-            current_width += s.len + 3;
+            try writer.print(" ({c})", .{s});
+            current_width += 4;
         }
 
         try writer.writeByteNTimes(' ', max_width - current_width + 2);
@@ -61,30 +56,30 @@ pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void
     }
 }
 
-/// (Internal) Prints a command's flags with aligned descriptions.
+/// Prints a command's flags with aligned descriptions.
 pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (cmd.flags.items) |flag| {
         if (flag.hidden) continue;
-        var len = 2 + flag.name.len;
-        if (flag.shortcut) |s| {
-            len += s.len + 3; // `-s, `
-        } else {
-            len += 5; // `     `
-        }
+        const len: usize = if (flag.shortcut != null)
+            // "  -c, --name"
+            flag.name.len + 8
+        else
+            // "      --name"
+            flag.name.len + 8;
         if (len > max_width) max_width = len;
     }
 
     for (cmd.flags.items) |flag| {
         if (flag.hidden) continue;
 
-        var current_width: usize = 0;
+        var current_width: usize = undefined;
         if (flag.shortcut) |s| {
-            try writer.print("  -{s}, --{s}", .{ s, flag.name });
-            current_width += 5 + s.len + flag.name.len;
+            try writer.print("  -{c}, --{s}", .{ s, flag.name });
+            current_width = flag.name.len + 8;
         } else {
             try writer.print("      --{s}", .{flag.name});
-            current_width += 6 + flag.name.len;
+            current_width = flag.name.len + 8;
         }
 
         try writer.writeByteNTimes(' ', max_width - current_width + 2);
@@ -93,13 +88,14 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
         switch (flag.default_value) {
             .Bool => |v| try writer.print(" (default: {})", .{v}),
             .Int => |v| try writer.print(" (default: {})", .{v}),
+            .Float => |v| try writer.print(" (default: {})", .{v}),
             .String => |v| try writer.print(" (default: \"{s}\")", .{v}),
         }
         try writer.print("\n", .{});
     }
 }
 
-/// (Internal) Prints a command's positional arguments with aligned descriptions.
+/// Prints a command's positional arguments with aligned descriptions.
 pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (cmd.positional_args.items) |arg| {
@@ -110,7 +106,10 @@ pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) 
         try writer.print("  {s}", .{arg.name});
         try writer.writeByteNTimes(' ', max_width - arg.name.len + 2);
         try writer.print("{s}", .{arg.description});
-        if (arg.is_required) {
+
+        if (arg.variadic) {
+            try writer.print(" (variadic)\n", .{});
+        } else if (arg.is_required) {
             try writer.print(" (required)\n", .{});
         } else {
             try writer.print(" (optional)\n", .{});
@@ -118,7 +117,7 @@ pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) 
     }
 }
 
-/// (Internal) Prints the full usage line for a command, including its parents.
+/// Prints the full usage line for a command, including its parents.
 pub fn printUsageLine(cmd: *const command.Command, writer: anytype) !void {
     var parents = std.ArrayList(*command.Command).init(cmd.allocator);
     defer parents.deinit();
@@ -145,7 +144,9 @@ pub fn printUsageLine(cmd: *const command.Command, writer: anytype) !void {
     }
 
     for (cmd.positional_args.items) |arg| {
-        if (arg.is_required) {
+        if (arg.variadic) {
+            try writer.print(" [{s}...]", .{arg.name});
+        } else if (arg.is_required) {
             try writer.print(" <{s}>", .{arg.name});
         } else {
             try writer.print(" [{s}]", .{arg.name});
@@ -171,7 +172,7 @@ const StringSortContext = struct {
     }
 };
 
-/// (Internal) Prints subcommands grouped by section and sorted alphabetically.
+/// Prints subcommands grouped by section and sorted alphabetically.
 pub fn printSubcommands(cmd: *const command.Command, writer: anytype) !void {
     var section_map = std.StringHashMap(std.ArrayList(*command.Command)).init(cmd.allocator);
     defer {

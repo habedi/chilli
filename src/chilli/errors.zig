@@ -4,13 +4,13 @@
 //! and makes it easier for users of the library to catch specific failures.
 const std = @import("std");
 
-/// A comprehensive set of all possible errors returned by the Chilli framework.
+/// The set of all possible errors returned by the Chilli framework.
 pub const Error = error{
     /// An unknown flag was provided (e.g., `--nonexistent`).
     UnknownFlag,
-    /// A flag that requires a value was provided without one (e.g., `--output` at the end of the line).
+    /// A flag that requires a value was provided without one.
     MissingFlagValue,
-    /// Short flags were grouped incorrectly (e.g., a non-boolean flag was not the last in a group).
+    /// Short flags were grouped incorrectly.
     InvalidFlagGrouping,
     /// A command was invoked without one of its required positional arguments.
     MissingRequiredArgument,
@@ -18,4 +18,18 @@ pub const Error = error{
     TooManyArguments,
     /// An invalid string was provided for a boolean flag (must be "true" or "false").
     InvalidBoolString,
-} || std.fmt.ParseIntError || std.mem.Allocator.Error; // Includes parsing and memory allocation errors.
+    /// Attempted to add an argument after a variadic one.
+    VariadicArgumentNotLastError,
+    /// Attempted to add a subcommand that already has a parent.
+    CommandAlreadyHasParent,
+    /// An integer value was outside the valid range for the requested type.
+    IntegerValueOutOfRange,
+    /// A float value was outside the valid range for the requested type.
+    FloatValueOutOfRange,
+    /// A flag with the same name or shortcut was already defined on this command.
+    DuplicateFlag,
+    /// Attempted to add a required positional argument after an optional one.
+    RequiredArgumentAfterOptional,
+    /// A command was defined with an empty string as an alias.
+    EmptyAlias,
+} || std.fmt.ParseIntError || std.fmt.ParseFloatError || std.mem.Allocator.Error;
