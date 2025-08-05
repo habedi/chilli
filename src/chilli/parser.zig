@@ -33,7 +33,11 @@ pub const ParsedFlag = struct {
     value: types.FlagValue,
 };
 
-/// Parses command-line arguments from an iterator.
+/// Parses command-line arguments from an iterator, populating the command's
+/// `parsed_flags` and `parsed_positionals` fields.
+///
+/// - `cmd`: The command to parse arguments for.
+/// - `iterator`: The `ArgIterator` providing the argument strings.
 pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.Error!void {
     var parsing_flags = true;
     while (iterator.peek()) |arg| {
@@ -71,7 +75,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
                     }
                     try cmd.parsed_flags.append(.{
                         .name = flag_name,
-                        .value = try flag.evaluateValueType(val),
+                        .value = try types.parseValue(flag.type, val),
                     });
                 }
                 continue;
@@ -82,7 +86,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
                 iterator.next();
 
                 for (shortcuts, 0..) |shortcut, i| {
-                    const flag = cmd.findFlag(&[_]u8{shortcut}) orelse return errors.Error.UnknownFlag;
+                    const flag = cmd.findFlagByShortcut(shortcut) orelse return errors.Error.UnknownFlag;
 
                     if (flag.type == .Bool) {
                         try cmd.parsed_flags.append(.{ .name = flag.name, .value = .{ .Bool = true } });
@@ -92,9 +96,6 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
 
                         if (shortcuts.len > i + 1) {
                             value = shortcuts[i + 1 ..];
-                            if (value.len > 0 and value[0] == '=') {
-                                value = value[1..];
-                            }
                         } else {
                             value = iterator.peek() orelse return errors.Error.MissingFlagValue;
                             value_from_next_arg = true;
@@ -106,7 +107,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
 
                         try cmd.parsed_flags.append(.{
                             .name = flag.name,
-                            .value = try flag.evaluateValueType(value),
+                            .value = try types.parseValue(flag.type, value),
                         });
                         break;
                     }
@@ -122,6 +123,8 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
 
 /// Validates that all required positional arguments have been provided and that there are
 /// no excess arguments unless a variadic argument is defined.
+///
+/// - `cmd`: The command whose parsed arguments should be validated.
 pub fn validateArgs(cmd: *command.Command) errors.Error!void {
     const num_defined = cmd.positional_args.items.len;
     const num_parsed = cmd.parsed_positionals.items.len;
@@ -152,7 +155,7 @@ pub fn validateArgs(cmd: *command.Command) errors.Error!void {
 const context = @import("context.zig");
 fn dummyExec(_: context.CommandContext) !void {}
 
-test "parser: short flag with equals" {
+test "parser: short flag with attached value" {
     const allocator = std.testing.allocator;
     var cmd = try command.Command.init(allocator, .{
         .name = "test",
@@ -163,13 +166,13 @@ test "parser: short flag with equals" {
 
     try cmd.addFlag(.{
         .name = "output",
-        .shortcut = "o",
+        .shortcut = 'o',
         .description = "Output file",
         .type = .String,
         .default_value = .{ .String = "" },
     });
 
-    var it = ArgIterator.init(&[_][]const u8{"-o=test.txt"});
+    var it = ArgIterator.init(&[_][]const u8{"-otest.txt"});
     try parseArgsAndFlags(&cmd, &it);
 
     try std.testing.expectEqual(1, cmd.parsed_flags.items.len);

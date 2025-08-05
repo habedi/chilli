@@ -31,26 +31,27 @@ while being small and fast, and not get in the way of your application logic.
 
 -   [x] **Command Structure**
     -   [x] Nested commands and subcommands
-    -   [x] Command aliases
+    -   [x] Command aliases and single-character shortcuts
     -   [x] Persistent flags (flags on parent commands are available to children)
 
 -   [x] **Argument & Flag Parsing**
     -   [x] Long flags (`--verbose`), short flags (`-v`), and grouped boolean flags (`-vf`)
-    -   [x] Type-safe flag access (like `ctx.getFlag("count", i64)`)
-    -   [x] Positional Arguments (supports required and optional)
+    -   [x] Positional Arguments (supports required, optional, and variadic)
+    -   [x] Type-safe access for flags and arguments (e.g., `ctx.getFlag("count", i64)`)
+    -   [x] Reading flag values from environment variables
 
 -   [x] **Help & Usage Output**
-    -   [x] Automatic and context-aware help generation (`--help`)
+    -   [x] Automatic and context-aware `--help` flag
+    -   [x] Automatic `--version` flag
     -   [x] Clean, aligned help output for commands, flags, and arguments
-    -   [x] Version display (automatic `--version` flag)
+    -   [x] Grouping subcommands into custom sections
 
 -   [x] **Developer Experience**
-    -   [x] Context data for passing application state
-    -   [x] Reading options from environment variables
-    -   [ ] Named access for positional arguments (access is currently by index)
+    -   [x] Simple, declarative API for building commands
+    -   [x] Named access for all flags and arguments
+    -   [x] Shared context data for passing application state
     -   [ ] Deprecation notices for commands or flags
     -   [ ] Built-in TUI components (like spinners and progress bars)
-
 ---
 
 ### Getting Started
@@ -63,11 +64,12 @@ The Zig build system will download it, verify its contents, and add it to your `
 Run the following command in the root directory of your project:
 
 ```sh
-zig fetch --save=chilli "https://github.com/habedi/chilli/archive/main.tar.gz"
+zig fetch --save=chilli "https://github.com/habedi/chilli/archive/<branch_or_tag>.tar.gz"
 ```
 
-This command fetches the latest version from the `main` branch and adds it to your `build.zig.zon` under the name
-`chilli`.
+Replace `<branch_or_tag>` with the desired branch or tag, like `main` or `v0.1.0`.
+This command will download Chilli and add it to your `build.zig.zon` file,
+which is used by the Zig build system to manage dependencies.
 
 #### 2. Use the Dependency in `build.zig`
 
@@ -111,8 +113,8 @@ const chilli = @import("chilli");
 
 // A function for our command to execute
 fn greet(ctx: chilli.CommandContext) !void {
-    const name = ctx.getFlag("name", []const u8);
-    const excitement = ctx.getFlag("excitement", u32);
+    const name = try ctx.getFlag("name", []const u8);
+    const excitement = try ctx.getFlag("excitement", u32);
 
     std.print("Hello, {s}", .{name});
     var i: u32 = 0;
@@ -139,7 +141,7 @@ pub fn main() anyerror!void {
     // Add flags to the command
     try root_cmd.addFlag(.{
         .name = "name",
-        .shortcut = "n",
+        .shortcut = 'n',
         .description = "The name to greet",
         .type = .String,
         .default_value = .{ .String = "World" },

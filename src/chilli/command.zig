@@ -43,7 +43,7 @@ pub const Command = struct {
 
         const help_flag = types.Flag{
             .name = "help",
-            .shortcut = "h",
+            .shortcut = 'h',
             .description = "Shows help information for this command",
             .type = .Bool,
             .default_value = .{ .Bool = false },
@@ -77,16 +77,10 @@ pub const Command = struct {
         try self.subcommands.append(sub);
     }
 
-    /// Adds a flag to the command.
-    /// Panics if the flag name is empty or the shortcut is not a single byte.
+    /// Adds a flag to the command. Panics if the flag name is empty.
     pub fn addFlag(self: *Command, flag: types.Flag) !void {
         if (flag.name.len == 0) {
             std.debug.panic("Flag name cannot be empty.", .{});
-        }
-        if (flag.shortcut) |s| {
-            if (s.len != 1) {
-                std.debug.panic("Flag shortcut for '{s}' must be a single byte, but got '{s}'", .{ flag.name, s });
-            }
         }
         try self.flags.append(flag);
     }
@@ -94,12 +88,11 @@ pub const Command = struct {
     /// Adds a positional argument to the command's definition.
     /// Returns `error.VariadicArgumentNotLastError` if you attempt to add an
     /// argument after one that is marked as variadic.
-    /// Panics if the argument name is empty.
+    /// Panics if the argument name is empty or an optional arg lacks a default value.
     pub fn addPositional(self: *Command, arg: types.PositionalArg) !void {
         if (arg.name.len == 0) {
             std.debug.panic("Positional argument name cannot be empty.", .{});
         }
-        // An optional argument must have a default value, unless it's variadic.
         if (!arg.is_required and !arg.variadic and arg.default_value == null) {
             std.debug.panic("Optional positional argument '{s}' must have a default_value.", .{arg.name});
         }
@@ -112,7 +105,7 @@ pub const Command = struct {
         try self.positional_args.append(arg);
     }
 
-    /// Parses arguments and executes the appropriate command.
+    /// Parses arguments and executes the appropriate command. This is the core logic loop.
     pub fn execute(self: *Command, user_args: []const []const u8, data: ?*anyopaque) anyerror!void {
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         defer arena.deinit();
@@ -122,10 +115,7 @@ pub const Command = struct {
 
         var current_cmd: *Command = self;
         while (arg_iterator.peek()) |arg| {
-            // Stop parsing for subcommands if a flag is encountered.
-            if (std.mem.startsWith(u8, arg, "-")) {
-                break;
-            }
+            if (std.mem.startsWith(u8, arg, "-")) break;
             if (current_cmd.findSubcommand(arg)) |found_sub| {
                 current_cmd = found_sub;
                 arg_iterator.next();
@@ -144,13 +134,13 @@ pub const Command = struct {
             }
         }
 
-        if (current_cmd.getFlagValue("version")) |flag_val| {
-            if (flag_val.Bool) {
-                if (self.options.version) |v| {
+        if (self.options.version != null) {
+            if (current_cmd.getFlagValue("version")) |flag_val| {
+                if (flag_val.Bool) {
                     const stdout = std.io.getStdOut().writer();
-                    try stdout.print("{s}\n", .{v});
+                    try stdout.print("{s}\n", .{self.options.version.?});
+                    return;
                 }
-                return;
             }
         }
 
@@ -164,6 +154,7 @@ pub const Command = struct {
     }
 
     /// The main entry point for running the CLI application.
+    /// This function handles process arguments, invokes `execute`, and prints formatted errors.
     pub fn run(self: *Command, data: ?*anyopaque) !void {
         if (self.options.version != null) {
             try self.addFlag(.{
@@ -189,15 +180,13 @@ pub const Command = struct {
                 errors.Error.MissingRequiredArgument => try stderr.print("{s}Error: Missing a required argument.{s}\n", .{ red, reset }),
                 errors.Error.TooManyArguments => try stderr.print("{s}Error: Too many arguments provided.{s}\n", .{ red, reset }),
                 errors.Error.InvalidBoolString => try stderr.print("{s}Error: Invalid value for boolean flag, expected 'true' or 'false'.{s}\n", .{ red, reset }),
-                errors.Error.VariadicArgumentNotLastError => try stderr.print("{s}Error: Cannot add another positional argument after a variadic one.{s}\n", .{ red, reset }),
-                errors.Error.CommandAlreadyHasParent => try stderr.print("{s}Error: A command was added to multiple parents.{s}\n", .{ red, reset }),
+                errors.Error.VariadicArgumentNotLastError => try stderr.print("{s}Internal Error: Cannot add another positional argument after a variadic one.{s}\n", .{ red, reset }),
+                errors.Error.CommandAlreadyHasParent => try stderr.print("{s}Internal Error: A command was added to multiple parents.{s}\n", .{ red, reset }),
                 errors.Error.IntegerValueOutOfRange => try stderr.print("{s}Error: An integer flag value was provided out of the allowed range.{s}\n", .{ red, reset }),
                 error.InvalidCharacter => try stderr.print("{s}Error: Invalid character in integer value.{s}\n", .{ red, reset }),
                 error.Overflow => try stderr.print("{s}Error: Integer value is too large or too small.{s}\n", .{ red, reset }),
                 error.OutOfMemory => try stderr.print("{s}Error: Out of memory.{s}\n", .{ red, reset }),
-                else => {
-                    return err;
-                },
+                else => return err,
             }
             std.process.exit(1);
         };
@@ -208,7 +197,7 @@ pub const Command = struct {
         for (self.subcommands.items) |sub| {
             if (std.mem.eql(u8, sub.options.name, name)) return sub;
             if (sub.options.shortcut) |s| {
-                if (std.mem.eql(u8, s, name)) return sub;
+                if (name.len == 1 and s == name[0]) return sub;
             }
             if (sub.options.aliases) |a| {
                 for (a) |alias| {
@@ -219,14 +208,25 @@ pub const Command = struct {
         return null;
     }
 
-    /// Finds a flag definition by its name or shortcut, searching upwards through parent commands.
-    pub fn findFlag(self: *Command, name_or_shortcut: []const u8) ?*types.Flag {
+    /// Finds a flag definition by its full name (e.g., "verbose"), searching upwards through parent commands.
+    pub fn findFlag(self: *Command, name: []const u8) ?*types.Flag {
         var current: ?*Command = self;
         while (current) |cmd| {
             for (cmd.flags.items) |*flag| {
-                if (std.mem.eql(u8, flag.name, name_or_shortcut)) return flag;
+                if (std.mem.eql(u8, flag.name, name)) return flag;
+            }
+            current = cmd.parent;
+        }
+        return null;
+    }
+
+    /// Finds a flag definition by its shortcut (e.g., 'v'), searching upwards through parent commands.
+    pub fn findFlagByShortcut(self: *Command, shortcut: u8) ?*types.Flag {
+        var current: ?*Command = self;
+        while (current) |cmd| {
+            for (cmd.flags.items) |*flag| {
                 if (flag.shortcut) |s| {
-                    if (std.mem.eql(u8, s, name_or_shortcut)) return flag;
+                    if (s == shortcut) return flag;
                 }
             }
             current = cmd.parent;
@@ -289,7 +289,6 @@ test "command: addPositional validation" {
     try cmd.addPositional(.{ .name = "a", .is_required = true });
     try cmd.addPositional(.{ .name = "b", .variadic = true });
 
-    // Should fail to add another argument after a variadic one.
     try std.testing.expectError(
         error.VariadicArgumentNotLastError,
         cmd.addPositional(.{ .name = "c", .is_required = true }),
@@ -326,9 +325,10 @@ test "command: findFlag traverses parents" {
     var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = dummyExec });
     try root.addSubcommand(sub);
 
-    try root.addFlag(.{ .name = "global", .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
+    try root.addFlag(.{ .name = "global", .shortcut = 'g', .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
 
     try std.testing.expect(sub.findFlag("global") != null);
+    try std.testing.expect(sub.findFlagByShortcut('g') != null);
 }
 
 var exec_called_on: ?[]const u8 = null;

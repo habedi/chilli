@@ -32,13 +32,13 @@ pub fn parseBool(input: []const u8) errors.Error!bool {
     return errors.Error.InvalidBoolString;
 }
 
-/// (Internal) Prints a list of commands with aligned descriptions.
+/// Prints a list of commands with aligned descriptions.
 pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (commands) |cmd| {
         var len = cmd.options.name.len;
-        if (cmd.options.shortcut) |s| {
-            len += s.len + 3; // " (s)"
+        if (cmd.options.shortcut != null) {
+            len += 4; // " (c)"
         }
         if (len > max_width) max_width = len;
     }
@@ -47,8 +47,8 @@ pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void
         try writer.print("  {s}", .{cmd.options.name});
         var current_width = cmd.options.name.len;
         if (cmd.options.shortcut) |s| {
-            try writer.print(" ({s})", .{s});
-            current_width += s.len + 3;
+            try writer.print(" ({c})", .{s});
+            current_width += 4;
         }
 
         try writer.writeByteNTimes(' ', max_width - current_width + 2);
@@ -56,14 +56,14 @@ pub fn printAlignedCommands(commands: []*command.Command, writer: anytype) !void
     }
 }
 
-/// (Internal) Prints a command's flags with aligned descriptions.
+/// Prints a command's flags with aligned descriptions.
 pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (cmd.flags.items) |flag| {
         if (flag.hidden) continue;
-        const len: usize = if (flag.shortcut) |s|
-            // "  -s, --name"
-            s.len + flag.name.len + 7
+        const len: usize = if (flag.shortcut != null)
+            // "  -c, --name"
+            flag.name.len + 8
         else
             // "      --name"
             flag.name.len + 8;
@@ -75,8 +75,8 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
 
         var current_width: usize = undefined;
         if (flag.shortcut) |s| {
-            try writer.print("  -{s}, --{s}", .{ s, flag.name });
-            current_width = s.len + flag.name.len + 7;
+            try writer.print("  -{c}, --{s}", .{ s, flag.name });
+            current_width = flag.name.len + 8;
         } else {
             try writer.print("      --{s}", .{flag.name});
             current_width = flag.name.len + 8;
@@ -94,7 +94,7 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
     }
 }
 
-/// (Internal) Prints a command's positional arguments with aligned descriptions.
+/// Prints a command's positional arguments with aligned descriptions.
 pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) !void {
     var max_width: usize = 0;
     for (cmd.positional_args.items) |arg| {
@@ -116,7 +116,7 @@ pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) 
     }
 }
 
-/// (Internal) Prints the full usage line for a command, including its parents.
+/// Prints the full usage line for a command, including its parents.
 pub fn printUsageLine(cmd: *const command.Command, writer: anytype) !void {
     var parents = std.ArrayList(*command.Command).init(cmd.allocator);
     defer parents.deinit();
@@ -171,7 +171,7 @@ const StringSortContext = struct {
     }
 };
 
-/// (Internal) Prints subcommands grouped by section and sorted alphabetically.
+/// Prints subcommands grouped by section and sorted alphabetically.
 pub fn printSubcommands(cmd: *const command.Command, writer: anytype) !void {
     var section_map = std.StringHashMap(std.ArrayList(*command.Command)).init(cmd.allocator);
     defer {
