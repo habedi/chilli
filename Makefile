@@ -28,7 +28,7 @@ SHELL         := /usr/bin/env bash
 # Targets
 ################################################################################
 
-.PHONY: all help build rebuild run test release clean lint format doc install-deps coverage setup-hooks test-hooks
+.PHONY: all help build rebuild run test release clean lint format docs serve-docs install-deps coverage setup-hooks test-hooks
 .DEFAULT_GOAL := help
 
 help: ## Show the help messages for all targets
@@ -79,10 +79,14 @@ format: ## Format Zig files
 	@echo "Formatting Zig files..."
 	@$(ZIG) fmt .
 
-doc: ## Generate API documentation
+docs: ## Generate API documentation
 	@echo "Generating documentation from $(DOC_SRC) to $(DOC_OUT)..."
 	@mkdir -p $(DOC_OUT)
 	@$(ZIG) test $(DOC_SRC) -femit-docs=$(DOC_OUT)
+
+serve-docs: ## Serve the generated documentation on a local server
+	@echo "Serving documentation at http://localhost:8000..."
+	@cd $(DOC_OUT) && python3 -m http.server 8000
 
 install-deps: ## Install system dependencies (for Debian-based systems)
 	@echo "Installing system dependencies..."

@@ -106,7 +106,7 @@ pub const Command = struct {
     }
 
     /// Parses arguments and executes the appropriate command. This is the core logic loop.
-    pub fn execute(self: *Command, user_args: []const []const u8, data: ?*anyopaque) anyerror!void {
+    pub fn execute(self: *Command, user_args: []const []const u8, data: ?*anyopaque, out_failed_cmd: *?*const Command) anyerror!void {
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
@@ -123,9 +123,13 @@ pub const Command = struct {
                 break;
             }
         }
+        out_failed_cmd.* = current_cmd;
 
         try parser.parseArgsAndFlags(current_cmd, &arg_iterator);
         try parser.validateArgs(current_cmd);
+
+        // Success, clear the out_failed_cmd
+        out_failed_cmd.* = null;
 
         if (current_cmd.getFlagValue("help")) |flag_val| {
             if (flag_val.Bool) {
@@ -153,6 +157,56 @@ pub const Command = struct {
         try current_cmd.options.exec(ctx);
     }
 
+    /// (private) Handles printing formatted errors to a writer.
+    /// This function is separated for testability.
+    fn handleExecutionError(
+        allocator: std.mem.Allocator,
+        err: anyerror,
+        failed_cmd: ?*const Command,
+        writer: anytype,
+    ) void {
+        const red = utils.styles.RED;
+        const reset = utils.styles.RESET;
+
+        writer.print("{s}Error:{s} ", .{ red, reset }) catch return;
+
+        switch (err) {
+            error.MissingRequiredArgument => {
+                if (failed_cmd) |cmd| {
+                    const path = cmd.getCommandPath(allocator) catch "unknown command";
+                    defer if (std.mem.eql(u8, path, "unknown command")) {} else {
+                        allocator.free(path);
+                    };
+                    writer.print("Missing a required argument for command '{s}'.\n", .{path}) catch return;
+                } else {
+                    writer.print("Missing a required argument.\n", .{}) catch return;
+                }
+            },
+            error.TooManyArguments => {
+                if (failed_cmd) |cmd| {
+                    const path = cmd.getCommandPath(allocator) catch "unknown command";
+                    defer if (std.mem.eql(u8, path, "unknown command")) {} else {
+                        allocator.free(path);
+                    };
+                    writer.print("Too many arguments provided for command '{s}'.\n", .{path}) catch return;
+                } else {
+                    writer.print("Too many arguments provided.\n", .{}) catch return;
+                }
+            },
+            error.UnknownFlag => writer.print("Unknown flag provided.\n", .{}) catch return,
+            error.MissingFlagValue => writer.print("Flag requires a value but none was provided.\n", .{}) catch return,
+            error.InvalidFlagGrouping => writer.print("Invalid short flag grouping.\n", .{}) catch return,
+            error.InvalidBoolString => writer.print("Invalid value for boolean flag, expected 'true' or 'false'.\n", .{}) catch return,
+            error.VariadicArgumentNotLastError => writer.print("Internal Error: Cannot add another positional argument after a variadic one.\n", .{}) catch return,
+            error.CommandAlreadyHasParent => writer.print("Internal Error: A command was added to multiple parents.\n", .{}) catch return,
+            error.IntegerValueOutOfRange => writer.print("An integer flag value was provided out of the allowed range.\n", .{}) catch return,
+            error.InvalidCharacter => writer.print("Invalid character in numeric value.\n", .{}) catch return,
+            error.Overflow => writer.print("Numeric value is too large or too small.\n", .{}) catch return,
+            error.OutOfMemory => writer.print("Out of memory.\n", .{}) catch return,
+            else => writer.print("An unexpected error occurred: {any}\n", .{err}) catch return,
+        }
+    }
+
     /// The main entry point for running the CLI application.
     /// This function handles process arguments, invokes `execute`, and prints formatted errors.
     pub fn run(self: *Command, data: ?*anyopaque) !void {
@@ -168,28 +222,28 @@ pub const Command = struct {
         var args = try std.process.argsAlloc(self.allocator);
         defer std.process.argsFree(self.allocator, args);
 
-        self.execute(args[1..], data) catch |err| {
+        var failed_cmd: ?*const Command = null;
+        self.execute(args[1..], data, &failed_cmd) catch |err| {
             const stderr = std.io.getStdErr().writer();
-            const red = utils.styles.RED;
-            const reset = utils.styles.RESET;
-
-            switch (err) {
-                errors.Error.UnknownFlag => try stderr.print("{s}Error: Unknown flag provided.{s}\n", .{ red, reset }),
-                errors.Error.MissingFlagValue => try stderr.print("{s}Error: Flag requires a value but none was provided.{s}\n", .{ red, reset }),
-                errors.Error.InvalidFlagGrouping => try stderr.print("{s}Error: Invalid short flag grouping.{s}\n", .{ red, reset }),
-                errors.Error.MissingRequiredArgument => try stderr.print("{s}Error: Missing a required argument.{s}\n", .{ red, reset }),
-                errors.Error.TooManyArguments => try stderr.print("{s}Error: Too many arguments provided.{s}\n", .{ red, reset }),
-                errors.Error.InvalidBoolString => try stderr.print("{s}Error: Invalid value for boolean flag, expected 'true' or 'false'.{s}\n", .{ red, reset }),
-                errors.Error.VariadicArgumentNotLastError => try stderr.print("{s}Internal Error: Cannot add another positional argument after a variadic one.{s}\n", .{ red, reset }),
-                errors.Error.CommandAlreadyHasParent => try stderr.print("{s}Internal Error: A command was added to multiple parents.{s}\n", .{ red, reset }),
-                errors.Error.IntegerValueOutOfRange => try stderr.print("{s}Error: An integer flag value was provided out of the allowed range.{s}\n", .{ red, reset }),
-                error.InvalidCharacter => try stderr.print("{s}Error: Invalid character in integer value.{s}\n", .{ red, reset }),
-                error.Overflow => try stderr.print("{s}Error: Integer value is too large or too small.{s}\n", .{ red, reset }),
-                error.OutOfMemory => try stderr.print("{s}Error: Out of memory.{s}\n", .{ red, reset }),
-                else => return err,
-            }
+            handleExecutionError(self.allocator, err, failed_cmd, stderr);
             std.process.exit(1);
         };
+    }
+
+    /// (private) Constructs the full command path (e.g., "root sub") for use in help and error messages.
+    /// The returned slice is allocated using the provided allocator and must be freed by the caller.
+    fn getCommandPath(self: *const Command, allocator: std.mem.Allocator) ![]const u8 {
+        var path_parts = std.ArrayList([]const u8).init(allocator);
+        defer path_parts.deinit();
+
+        var current: ?*const Command = self;
+        while (current) |cmd| {
+            try path_parts.append(cmd.options.name);
+            current = cmd.parent;
+        }
+        std.mem.reverse([]const u8, path_parts.items);
+
+        return std.mem.join(allocator, " ", path_parts.items);
     }
 
     /// Finds a direct subcommand by its name, alias, or shortcut.
@@ -344,10 +398,55 @@ test "command: execute" {
     try root.addSubcommand(sub);
 
     exec_called_on = null;
-    try root.execute(&[_][]const u8{}, null);
+    var failed_cmd: ?*const Command = null;
+    try root.execute(&[_][]const u8{}, null, &failed_cmd);
     try std.testing.expectEqualStrings("root", exec_called_on.?);
 
     exec_called_on = null;
-    try root.execute(&[_][]const u8{"sub"}, null);
+    try root.execute(&[_][]const u8{"sub"}, null, &failed_cmd);
     try std.testing.expectEqualStrings("sub", exec_called_on.?);
+}
+
+test "command: getCommandPath" {
+    const allocator = std.testing.allocator;
+    var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
+    defer root.deinit();
+    var sub1 = try Command.init(allocator, .{ .name = "sub1", .description = "", .exec = dummyExec });
+    try root.addSubcommand(sub1);
+    var sub2 = try Command.init(allocator, .{ .name = "sub2", .description = "", .exec = dummyExec });
+    try sub1.addSubcommand(sub2);
+
+    var path = try root.getCommandPath(allocator);
+    defer allocator.free(path);
+    try std.testing.expectEqualStrings("root", path);
+
+    path = try sub1.getCommandPath(allocator);
+    defer allocator.free(path);
+    try std.testing.expectEqualStrings("root sub1", path);
+
+    path = try sub2.getCommandPath(allocator);
+    defer allocator.free(path);
+    try std.testing.expectEqualStrings("root sub1 sub2", path);
+}
+
+test "command: handleExecutionError provides context" {
+    const allocator = std.testing.allocator;
+    var buf: [1024]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    var root_cmd = try Command.init(allocator, .{ .name = "test-cmd", .description = "", .exec = dummyExec });
+    defer root_cmd.deinit();
+
+    // Test with context
+    fbs.pos = 0;
+    Command.handleExecutionError(allocator, error.TooManyArguments, root_cmd, writer);
+    var written = fbs.getWritten();
+    try std.testing.expect(std.mem.endsWith(u8, written, "Error: Too many arguments provided for command 'test-cmd'.\n"));
+
+    // Test without context
+    fbs.pos = 0;
+    Command.handleExecutionError(allocator, error.TooManyArguments, null, writer);
+    written = fbs.getWritten();
+    try std.testing.expect(std.mem.endsWith(u8, written, "Error: Too many arguments provided.\n"));
 }
