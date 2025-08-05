@@ -12,7 +12,7 @@ CACHE_DIR     := .zig-cache
 BINARY_NAME   := example
 RELEASE_MODE := ReleaseSmall
 TEST_FLAGS := --summary all #--verbose
-JUNK_FILES := *.o *.obj *.dSYM
+JUNK_FILES := *.o *.obj *.dSYM *.dll *.so *.dylib *.a *.lib *.pdb
 
 # Automatically find all example names
 EXAMPLES      := $(patsubst %.zig,%,$(notdir $(wildcard examples/*.zig)))

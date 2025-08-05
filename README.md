@@ -145,8 +145,8 @@ pub fn main() anyerror!void {
 ### Documentation
 
 You can use the `make doc` command to generate the API documentation for Chilli.
-This will generate HTML documentation in the [docs/api](docs/api/index.html) directory, which you can serve locally with
-`make serve-docs` and view in your web browser at `http://localhost:8000/index.html`.
+This will generate HTML documentation in the `docs/api` directory, which you can serve locally with `make serve-docs`
+and view in your web browser at `http://localhost:8000/index.html`.
 
 ### Examples
 
