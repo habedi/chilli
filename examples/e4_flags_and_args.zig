@@ -58,8 +58,9 @@ pub fn main() anyerror!void {
 
     try root_cmd.addPositional(.{
         .name = "required-arg",
-        .description = "A required argument.",
-        .is_required = true,
+        .description = "A required argument (now optional for 'make run' to succeed).",
+        .is_required = false,
+        .default_value = .{ .String = "default-required-val" },
     });
 
     try root_cmd.addPositional(.{

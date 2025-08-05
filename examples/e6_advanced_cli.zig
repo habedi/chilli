@@ -8,7 +8,7 @@ const AppContext = struct {
 
 fn rootExec(ctx: chilli.CommandContext) !void {
     const is_verbose = try ctx.getFlag("verbose", bool);
-    std.debug.print("Comprehensive CLI Example\n", .{});
+    std.debug.print("Advanced CLI Example\n", .{});
     std.debug.print("  - Verbose mode: {}\n", .{is_verbose});
 
     if (ctx.getContextData(AppContext)) |app_ctx| {
