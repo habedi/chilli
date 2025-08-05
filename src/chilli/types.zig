@@ -8,6 +8,7 @@ const errors = @import("errors.zig");
 pub const FlagType = enum {
     Bool,
     Int,
+    Float,
     String,
 };
 
@@ -15,6 +16,7 @@ pub const FlagType = enum {
 pub const FlagValue = union(FlagType) {
     Bool: bool,
     Int: i64,
+    Float: f64,
     String: []const u8,
 };
 
@@ -27,6 +29,7 @@ pub fn parseValue(value_type: FlagType, value: []const u8) errors.Error!FlagValu
     return switch (value_type) {
         .Bool => FlagValue{ .Bool = try utils.parseBool(value) },
         .Int => FlagValue{ .Int = try std.fmt.parseInt(i64, value, 10) },
+        .Float => FlagValue{ .Float = try std.fmt.parseFloat(f64, value) },
         .String => FlagValue{ .String = value },
     };
 }
@@ -95,6 +98,10 @@ test "types: parseValue" {
     // Int
     try std.testing.expectEqual(@as(i64, 123), (try parseValue(.Int, "123")).Int);
     try std.testing.expectError(error.InvalidCharacter, parseValue(.Int, "notanint"));
+
+    // Float
+    try std.testing.expectEqual(3.14, (try parseValue(.Float, "3.14")).Float);
+    try std.testing.expectError(error.InvalidCharacter, parseValue(.Float, "notafloat"));
 
     // String
     try std.testing.expectEqualStrings("hello", (try parseValue(.String, "hello")).String);

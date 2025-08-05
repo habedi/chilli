@@ -24,4 +24,6 @@ pub const Error = error{
     CommandAlreadyHasParent,
     /// An integer value was outside the valid range for the requested type.
     IntegerValueOutOfRange,
-} || std.fmt.ParseIntError || std.mem.Allocator.Error;
+    /// A float value was outside the valid range for the requested type.
+    FloatValueOutOfRange,
+} || std.fmt.ParseIntError || std.fmt.ParseFloatError || std.mem.Allocator.Error;

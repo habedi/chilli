@@ -88,6 +88,7 @@ pub fn printAlignedFlags(cmd: *const command.Command, writer: anytype) !void {
         switch (flag.default_value) {
             .Bool => |v| try writer.print(" (default: {})", .{v}),
             .Int => |v| try writer.print(" (default: {})", .{v}),
+            .Float => |v| try writer.print(" (default: {})", .{v}),
             .String => |v| try writer.print(" (default: \"{s}\")", .{v}),
         }
         try writer.print("\n", .{});

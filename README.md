@@ -52,6 +52,7 @@ while being small and fast, and not get in the way of your application logic.
     -   [x] Shared context data for passing application state
     -   [ ] Deprecation notices for commands or flags
     -   [ ] Built-in TUI components (like spinners and progress bars)
+
 ---
 
 ### Getting Started
@@ -160,9 +161,14 @@ pub fn main() anyerror!void {
 
 ### Examples
 
-| File                                      | Description                                                        |
-|-------------------------------------------|--------------------------------------------------------------------|
-| [simple_cli.zig](examples/simple_cli.zig) | A simple CLI application that shows basic command and flag parsing |
+| File                                                        | Description                                                          |
+|-------------------------------------------------------------|----------------------------------------------------------------------|
+| [e1_simple_cli.zig](examples/e1_simple_cli.zig)             | A simple CLI application that shows basic command and flag parsing   |
+| [e2_nested_commands.zig](examples/e2_nested_commands.zig)   | A CLI with nested commands and subcommands                           |
+| [e3_help_output.zig](examples/e3_help_output.zig)           | Demonstrates automatic help output and usage information             |
+| [e4_flags_and_args.zig](examples/e4_flags_and_args.zig)     | Shows how to use flags and positional arguments in commands          |
+| [e5_custom_sections.zig](examples/e5_custom_sections.zig)   | Demonstrates grouping subcommands into custom sections               |
+| [e6_advanced_cli.zig](examples/e6_advanced_cli.zig) | An advanced CLI example with deprecation notices and custom sections |
 
 -----
 
