@@ -1,6 +1,6 @@
-################################################################################
-# Configuration and Variables
-################################################################################
+# ################################################################################
+# # Configuration and Variables
+# ################################################################################
 ZIG    ?= $(shell which zig || echo ~/.local/share/zig/0.14.1/zig)
 BUILD_TYPE    ?= Debug
 BUILD_OPTS      = -Doptimize=$(BUILD_TYPE)
@@ -9,16 +9,13 @@ SRC_DIR       := src
 EXAMPLES_DIR  := examples
 BUILD_DIR     := zig-out
 CACHE_DIR     := .zig-cache
-DOC_SRC       := src/lib.zig
-DOC_OUT       := docs/api/
-COVERAGE_DIR  := coverage
 BINARY_NAME   := example
 RELEASE_MODE := ReleaseSmall
 TEST_FLAGS := --summary all #--verbose
+JUNK_FILES := *.o *.obj *.dSYM
 
 # Automatically find all example names
 EXAMPLES      := $(patsubst %.zig,%,$(notdir $(wildcard examples/*.zig)))
-# CHANGED: Default is now "all"
 EXAMPLE       ?= all
 
 SHELL         := /usr/bin/env bash
@@ -48,15 +45,15 @@ rebuild: clean build  ## clean and build
 
 run: ## Run an example (e.g. 'make run EXAMPLE=trie' or 'make run' for all)
 	@if [ "$(EXAMPLE)" = "all" ]; then \
-		echo "--> Running all examples..."; \
-		for ex in $(EXAMPLES); do \
-			echo ""; \
-			echo "--> Running example: $$ex"; \
-			$(ZIG) build run-$$ex $(BUILD_OPTS); \
-		done; \
+	   echo "--> Running all examples..."; \
+	   for ex in $(EXAMPLES); do \
+		  echo ""; \
+		  echo "--> Running example: $$ex"; \
+		  $(ZIG) build run-$$ex $(BUILD_OPTS); \
+	   done; \
 	else \
-		echo "--> Running example: $(EXAMPLE)"; \
-		$(ZIG) build run-$(EXAMPLE) $(BUILD_OPTS); \
+	   echo "--> Running example: $(EXAMPLE)"; \
+	   $(ZIG) build run-$(EXAMPLE) $(BUILD_OPTS); \
 	fi
 
 test: ## Run tests
@@ -69,7 +66,7 @@ release: ## Build in Release mode
 
 clean: ## Remove docs, build artifacts, and cache directories
 	@echo "Removing build artifacts, cache, generated docs, and coverage files..."
-	@rm -rf $(BUILD_DIR) $(CACHE_DIR) $(DOC_OUT) *.profraw $(COVERAGE_DIR) public
+	@rm -rf $(BUILD_DIR) $(CACHE_DIR) $(JUNK_FILES) docs/api public
 
 lint: ## Check code style and formatting of Zig files
 	@echo "Running code style checks..."
@@ -80,13 +77,12 @@ format: ## Format Zig files
 	@$(ZIG) fmt .
 
 docs: ## Generate API documentation
-	@echo "Generating documentation from $(DOC_SRC) to $(DOC_OUT)..."
-	@mkdir -p $(DOC_OUT)
-	@$(ZIG) test $(DOC_SRC) -femit-docs=$(DOC_OUT)
+	@echo "Generating API documentation..."
+	@$(ZIG) build docs
 
 serve-docs: ## Serve the generated documentation on a local server
 	@echo "Serving documentation at http://localhost:8000..."
-	@cd $(DOC_OUT) && python3 -m http.server 8000
+	@cd docs/api && python3 -m http.server 8000
 
 install-deps: ## Install system dependencies (for Debian-based systems)
 	@echo "Installing system dependencies..."

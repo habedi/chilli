@@ -26,4 +26,10 @@ pub const Error = error{
     IntegerValueOutOfRange,
     /// A float value was outside the valid range for the requested type.
     FloatValueOutOfRange,
+    /// A flag with the same name or shortcut was already defined on this command.
+    DuplicateFlag,
+    /// Attempted to add a required positional argument after an optional one.
+    RequiredArgumentAfterOptional,
+    /// A command was defined with an empty string as an alias.
+    EmptyAlias,
 } || std.fmt.ParseIntError || std.fmt.ParseFloatError || std.mem.Allocator.Error;

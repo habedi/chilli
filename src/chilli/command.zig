@@ -12,6 +12,12 @@ const errors = @import("errors.zig");
 /// It can also contain subcommands, forming a nested command structure. Commands are
 /// responsible for their own memory management; `deinit` must be called on the root
 /// command to free all associated resources, including those of its subcommands.
+///
+/// # Thread Safety
+/// This object and its methods are NOT thread-safe. The command tree should be
+/// fully defined in a single thread before being used. Calling `run` from multiple
+/// threads on the same `Command` instance concurrently will result in a data race
+/// and undefined behavior.
 pub const Command = struct {
     options: types.CommandOptions,
     subcommands: std.ArrayList(*Command),
@@ -54,6 +60,11 @@ pub const Command = struct {
     }
 
     /// Deinitializes the command and all its subcommands recursively.
+    ///
+    /// This function should ONLY be called on the root command of the application.
+    /// It recursively deinitializes all child and grandchild commands. Calling `deinit`
+    /// on a subcommand that has a parent will lead to a double-free when the
+    /// root command's `deinit` is also called.
     pub fn deinit(self: *Command) void {
         for (self.subcommands.items) |sub| {
             sub.deinit();
@@ -68,26 +79,49 @@ pub const Command = struct {
 
     /// Adds a subcommand to this command.
     /// Returns `error.CommandAlreadyHasParent` if the subcommand has already been
-    /// added to another command, to prevent double-frees during deinitialization.
+    /// added to another command.
+    /// Returns `error.EmptyAlias` if the subcommand is defined with an empty alias.
     pub fn addSubcommand(self: *Command, sub: *Command) !void {
         if (sub.parent != null) {
             return errors.Error.CommandAlreadyHasParent;
         }
+        if (sub.options.aliases) |aliases| {
+            for (aliases) |alias| {
+                if (alias.len == 0) return error.EmptyAlias;
+            }
+        }
+
         sub.parent = self;
         try self.subcommands.append(sub);
     }
 
     /// Adds a flag to the command. Panics if the flag name is empty.
+    /// Returns `error.DuplicateFlag` if a flag with the same name or shortcut
+    /// already exists on this command.
     pub fn addFlag(self: *Command, flag: types.Flag) !void {
         if (flag.name.len == 0) {
             std.debug.panic("Flag name cannot be empty.", .{});
         }
+
+        for (self.flags.items) |existing_flag| {
+            if (std.mem.eql(u8, existing_flag.name, flag.name)) {
+                return error.DuplicateFlag;
+            }
+            if (existing_flag.shortcut) |s_old| {
+                if (flag.shortcut) |s_new| {
+                    if (s_old == s_new) return error.DuplicateFlag;
+                }
+            }
+        }
+
         try self.flags.append(flag);
     }
 
     /// Adds a positional argument to the command's definition.
     /// Returns `error.VariadicArgumentNotLastError` if you attempt to add an
     /// argument after one that is marked as variadic.
+    /// Returns `error.RequiredArgumentAfterOptional` if you attempt to add a
+    /// required argument after an optional one.
     /// Panics if the argument name is empty or an optional arg lacks a default value.
     pub fn addPositional(self: *Command, arg: types.PositionalArg) !void {
         if (arg.name.len == 0) {
@@ -96,12 +130,17 @@ pub const Command = struct {
         if (!arg.is_required and !arg.variadic and arg.default_value == null) {
             std.debug.panic("Optional positional argument '{s}' must have a default_value.", .{arg.name});
         }
+
         if (self.positional_args.items.len > 0) {
             const last_arg = self.positional_args.items[self.positional_args.items.len - 1];
             if (last_arg.variadic) {
                 return errors.Error.VariadicArgumentNotLastError;
             }
+            if (arg.is_required and !last_arg.is_required) {
+                return errors.Error.RequiredArgumentAfterOptional;
+            }
         }
+
         try self.positional_args.append(arg);
     }
 
@@ -124,6 +163,10 @@ pub const Command = struct {
             }
         }
         out_failed_cmd.* = current_cmd;
+
+        // Reset state from any previous run, making the command re-entrant.
+        current_cmd.parsed_flags.shrinkRetainingCapacity(0);
+        current_cmd.parsed_positionals.shrinkRetainingCapacity(0);
 
         try parser.parseArgsAndFlags(current_cmd, &arg_iterator);
         try parser.validateArgs(current_cmd);
@@ -168,6 +211,11 @@ pub const Command = struct {
         const red = utils.styles.RED;
         const reset = utils.styles.RESET;
 
+        switch (err) {
+            error.BrokenPipe => return, // Exit silently on broken pipe
+            else => {},
+        }
+
         writer.print("{s}Error:{s} ", .{ red, reset }) catch return;
 
         switch (err) {
@@ -193,6 +241,9 @@ pub const Command = struct {
                     writer.print("Too many arguments provided.\n", .{}) catch return;
                 }
             },
+            error.DuplicateFlag => writer.print("A flag with the same name or shortcut was defined more than once.\n", .{}) catch return,
+            error.RequiredArgumentAfterOptional => writer.print("A required positional argument cannot be defined after an optional one.\n", .{}) catch return,
+            error.EmptyAlias => writer.print("A command cannot be defined with an empty string as an alias.\n", .{}) catch return,
             error.UnknownFlag => writer.print("Unknown flag provided.\n", .{}) catch return,
             error.MissingFlagValue => writer.print("Flag requires a value but none was provided.\n", .{}) catch return,
             error.InvalidFlagGrouping => writer.print("Invalid short flag grouping.\n", .{}) catch return,
@@ -246,6 +297,7 @@ pub const Command = struct {
         return std.mem.join(allocator, " ", path_parts.items);
     }
 
+    // ... other functions from findSubcommand to printHelp remain unchanged ...
     /// Finds a direct subcommand by its name, alias, or shortcut.
     pub fn findSubcommand(self: *Command, name: []const u8) ?*Command {
         for (self.subcommands.items) |sub| {
@@ -335,6 +387,61 @@ pub const Command = struct {
 
 fn dummyExec(_: context.CommandContext) !void {}
 
+test "command: addSubcommand detects empty alias" {
+    const allocator = std.testing.allocator;
+    var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
+    defer root.deinit();
+
+    var sub_bad = try Command.init(allocator, .{
+        .name = "bad",
+        .description = "",
+        .aliases = &.{ "", "b" },
+        .exec = dummyExec,
+    });
+    defer sub_bad.deinit();
+
+    try std.testing.expectError(error.EmptyAlias, root.addSubcommand(sub_bad));
+}
+
+test "command: addFlag detects duplicates" {
+    const allocator = std.testing.allocator;
+    var cmd = try Command.init(allocator, .{ .name = "test", .description = "", .exec = dummyExec });
+    defer cmd.deinit();
+
+    try cmd.addFlag(.{ .name = "output", .description = "", .type = .String, .default_value = .{ .String = "" } });
+    try cmd.addFlag(.{ .name = "verbose", .shortcut = 'v', .description = "", .type = .Bool, .default_value = .{ .Bool = false } });
+
+    // Expect error for duplicate name
+    try std.testing.expectError(error.DuplicateFlag, cmd.addFlag(.{
+        .name = "output",
+        .description = "",
+        .type = .Int,
+        .default_value = .{ .Int = 0 },
+    }));
+
+    // Expect error for duplicate shortcut
+    try std.testing.expectError(error.DuplicateFlag, cmd.addFlag(.{
+        .name = "volume",
+        .shortcut = 'v',
+        .description = "",
+        .type = .Int,
+        .default_value = .{ .Int = 0 },
+    }));
+}
+
+test "command: addPositional argument order" {
+    const allocator = std.testing.allocator;
+    var cmd = try Command.init(allocator, .{ .name = "test", .description = "", .exec = dummyExec });
+    defer cmd.deinit();
+
+    try cmd.addPositional(.{ .name = "optional", .is_required = false, .default_value = .{ .String = "" } });
+    try std.testing.expectError(error.RequiredArgumentAfterOptional, cmd.addPositional(.{
+        .name = "required",
+        .is_required = true,
+    }));
+}
+
+// ... other tests from `addPositional validation` to `getCommandPath` remain unchanged ...
 test "command: addPositional validation" {
     const allocator = std.testing.allocator;
     var cmd = try Command.init(allocator, .{ .name = "test", .description = "", .exec = dummyExec });
@@ -449,4 +556,14 @@ test "command: handleExecutionError provides context" {
     Command.handleExecutionError(allocator, error.TooManyArguments, null, writer);
     written = fbs.getWritten();
     try std.testing.expect(std.mem.endsWith(u8, written, "Error: Too many arguments provided.\n"));
+}
+
+test "command: handleExecutionError silent on broken pipe" {
+    const allocator = std.testing.allocator;
+    var buf: [1024]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&buf);
+    const writer = fbs.writer();
+
+    Command.handleExecutionError(allocator, error.BrokenPipe, null, writer);
+    try std.testing.expectEqualStrings("", fbs.getWritten());
 }

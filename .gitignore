@@ -97,3 +97,9 @@ uv.lock
 *_output.txt
 public/
 docs/api/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
