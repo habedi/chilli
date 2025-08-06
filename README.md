@@ -188,6 +188,7 @@ Here’s your table with an added **Index** column:
     -   [x] Shared context data for passing application state
     -   [ ] Deprecation notices for commands or flags
     -   [ ] Built-in TUI components (like spinners and progress bars)
+    -   [ ] Automatic command history and completion
 
 ---
 

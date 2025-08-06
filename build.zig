@@ -79,4 +79,35 @@ pub fn build(b: *std.Build) void {
         const run_step = b.step(run_step_name, run_step_desc);
         run_step.dependOn(&run_cmd.step);
     }
+
+    // --- Coverage Setup ---
+    const coverage_step = b.step("coverage", "Generate code coverage report with kcov");
+
+    const host_os = b.graph.host.result.os.tag;
+    if (host_os == .linux or host_os == .macos) {
+        const kcov = b.findProgram(&.{"kcov"}, &.{}) catch {
+            std.log.warn("kcov not found, skipping coverage step. Please install kcov.", .{});
+            return;
+        };
+
+        const coverage_output_dir = b.fmt("{s}/coverage", .{b.cache_root.path orelse ".zig-cache"});
+
+        const kcov_cmd = b.addSystemCommand(&.{
+            kcov,
+            "--include-pattern=src/",
+            "--verify",
+            coverage_output_dir,
+        });
+
+        kcov_cmd.addArtifactArg(lib_unit_tests);
+
+        const install_coverage = b.addInstallDirectory(.{
+            .source_dir = .{ .cwd_relative = coverage_output_dir },
+            .install_dir = .prefix,
+            .install_subdir = "coverage",
+        });
+
+        coverage_step.dependOn(&install_coverage.step);
+        coverage_step.dependOn(&kcov_cmd.step);
+    }
 }

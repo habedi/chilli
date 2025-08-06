@@ -92,7 +92,7 @@ install-deps: ## Install system dependencies (for Debian-based systems)
 
 coverage: test ## Generate code coverage report
 	@echo "Generating coverage report..."
-	@kcov --include-pattern=src --verify coverage-out zig-out/bin/simple_cli
+	@$(ZIG) build coverage -Duse-llvm
 
 setup-hooks: ## Install Git hooks (pre-commit and pre-push)
 	@echo "Setting up Git hooks..."
