@@ -9,28 +9,30 @@ fn addExec(ctx: CommandContext) !void {
     const a = try ctx.getArg("a", f64);
     const b = try ctx.getArg("b", f64);
     const result = a + b;
-    std.debug.print("{d} + {d} = {d}\n", .{ a, b, result });
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{d} + {d} = {d}\n", .{ a, b, result });
 }
 
 fn subtractExec(ctx: CommandContext) !void {
     const a = try ctx.getArg("a", f64);
     const b = try ctx.getArg("b", f64);
     const result = a - b;
-    std.debug.print("{d} - {d} = {d}\n", .{ a, b, result });
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{d} - {d} = {d}\n", .{ a, b, result });
 }
 
 fn multiplyExec(ctx: CommandContext) !void {
     const a = try ctx.getArg("a", f64);
     const b = try ctx.getArg("b", f64);
     const result = a * b;
-    std.debug.print("{d} * {d} = {d}\n", .{ a, b, result });
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("{d} * {d} = {d}\n", .{ a, b, result });
 }
 
 fn calculatorRootExec(ctx: CommandContext) !void {
     try ctx.command.printHelp();
 }
 
-/// Helper function to reduce boilerplate when creating operation commands.
 fn makeOperationCmd(
     allocator: std.mem.Allocator,
     options: CommandOptions,

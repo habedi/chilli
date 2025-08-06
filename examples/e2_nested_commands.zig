@@ -7,12 +7,14 @@ fn rootExec(ctx: chilli.CommandContext) !void {
 
 fn dbMigrateExec(ctx: chilli.CommandContext) !void {
     _ = ctx;
-    std.debug.print("Running database migrations...\n", .{});
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("Running database migrations...\n", .{});
 }
 
 fn dbSeedExec(ctx: chilli.CommandContext) !void {
     const file = try ctx.getArg("file", []const u8);
-    std.debug.print("Seeding database from file: {s}\n", .{file});
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("Seeding database from file: {s}\n", .{file});
 }
 
 pub fn main() anyerror!void {

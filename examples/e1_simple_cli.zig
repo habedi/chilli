@@ -14,6 +14,8 @@ pub fn main() anyerror!void {
         .config_path = "",
     };
 
+    defer if (app_context.config_path.len > 0) allocator.free(app_context.config_path);
+
     const root_options = chilli.CommandOptions{
         .name = "chilli-app",
         .description = "A simple example CLI using Chilli.",
@@ -58,25 +60,31 @@ pub fn main() anyerror!void {
 fn rootExec(ctx: chilli.CommandContext) anyerror!void {
     const app_ctx = ctx.getContextData(AppContext).?;
     const config_slice = try ctx.getFlag("config", []const u8);
+    const stdout = std.io.getStdOut().writer();
 
-    app_ctx.config_path = try ctx.allocator.dupe(u8, config_slice);
-    std.debug.print("Welcome to chilli-app!\n", .{});
-    std.debug.print("  Using config file: {s}\n\n", .{app_ctx.config_path});
+    if (app_ctx.config_path.len > 0) {
+        ctx.app_allocator.free(app_ctx.config_path);
+    }
+    app_ctx.config_path = try ctx.app_allocator.dupe(u8, config_slice);
+
+    try stdout.print("Welcome to chilli-app!\n", .{});
+    try stdout.print("  Using config file: {s}\n\n", .{app_ctx.config_path});
     try ctx.command.printHelp();
 }
 
 fn runExec(ctx: chilli.CommandContext) anyerror!void {
     const task_name = try ctx.getArg("task-name", []const u8);
     const files = ctx.getArgs("files");
+    const stdout = std.io.getStdOut().writer();
 
-    std.debug.print("Running task '{s}'...\n", .{task_name});
+    try stdout.print("Running task '{s}'...\n", .{task_name});
 
     if (files.len == 0) {
-        std.debug.print("No files provided to process.\n", .{});
+        try stdout.print("No files provided to process.\n", .{});
     } else {
-        std.debug.print("Processing {d} files:\n", .{files.len});
+        try stdout.print("Processing {d} files:\n", .{files.len});
         for (files) |file| {
-            std.debug.print("  - {s}\n", .{file});
+            try stdout.print("  - {s}\n", .{file});
         }
     }
 }

@@ -28,18 +28,12 @@ fn downloadExec(ctx: chilli.CommandContext) !void {
         std.debug.print("Output file: {s}\n", .{output_path});
     }
 
-    const uri = std.Uri.parse(url) catch |err| {
-        std.debug.print("Error: Invalid URL: {any}\n", .{err});
-        return;
-    };
+    const uri = try std.Uri.parse(url);
 
     var server_header_buffer: [16 * 1024]u8 = undefined;
-    var req = download_ctx.client.open(.GET, uri, .{
+    var req = try download_ctx.client.open(.GET, uri, .{
         .server_header_buffer = &server_header_buffer,
-    }) catch |err| {
-        std.debug.print("Error: Failed to create request: {any}\n", .{err});
-        return;
-    };
+    });
     defer req.deinit();
 
     try req.send();
@@ -48,24 +42,19 @@ fn downloadExec(ctx: chilli.CommandContext) !void {
 
     if (req.response.status != .ok) {
         std.debug.print("Error: HTTP {d} - {s}\n", .{ @intFromEnum(req.response.status), @tagName(req.response.status) });
-        return;
+        return error.HttpRequestFailed;
     }
 
-    const file = std.fs.cwd().createFile(output_path, .{}) catch |err| {
-        std.debug.print("Error: Failed to create output file: {any}\n", .{err});
-        return;
-    };
+    const file = try std.fs.cwd().createFile(output_path, .{});
     defer file.close();
 
     var buffer: [8192]u8 = undefined;
     var total_bytes: u64 = 0;
 
-    // CORRECTED: Use a while(true) loop and break when read() returns 0.
     while (true) {
         const bytes_read = req.reader().read(&buffer) catch |err| {
             if (err == error.EndOfStream) break;
-            std.debug.print("Error: Failed to read response: {any}\n", .{err});
-            return;
+            return err;
         };
 
         if (bytes_read == 0) break;

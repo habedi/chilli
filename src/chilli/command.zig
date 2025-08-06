@@ -192,7 +192,8 @@ pub const Command = struct {
         }
 
         const ctx = context.CommandContext{
-            .allocator = arena_allocator,
+            .app_allocator = self.allocator,
+            .tmp_allocator = arena_allocator,
             .command = current_cmd,
             .data = data,
         };

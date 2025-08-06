@@ -10,15 +10,17 @@ fn exec(ctx: chilli.CommandContext) !void {
     const optional_arg = try ctx.getArg("optional-arg", []const u8);
     const variadic_args = ctx.getArgs("variadic-args");
 
-    std.debug.print("Flags:\n", .{});
-    std.debug.print("  --count: {d}\n", .{count});
-    std.debug.print("  --message: {s}\n", .{message});
-    std.debug.print("  --force: {}\n", .{force});
+    const stdout = std.io.getStdOut().writer();
 
-    std.debug.print("\nArguments:\n", .{});
-    std.debug.print("  required-arg: {s}\n", .{required_arg});
-    std.debug.print("  optional-arg: {s}\n", .{optional_arg});
-    std.debug.print("  variadic-args: {s}\n", .{variadic_args});
+    try stdout.print("Flags:\n", .{});
+    try stdout.print("  --count: {d}\n", .{count});
+    try stdout.print("  --message: {s}\n", .{message});
+    try stdout.print("  --force: {}\n", .{force});
+
+    try stdout.print("\nArguments:\n", .{});
+    try stdout.print("  required-arg: {s}\n", .{required_arg});
+    try stdout.print("  optional-arg: {s}\n", .{optional_arg});
+    try stdout.print("  variadic-args: {s}\n", .{variadic_args});
 }
 
 pub fn main() anyerror!void {
