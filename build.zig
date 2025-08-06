@@ -24,8 +24,6 @@ pub fn build(b: *std.Build) void {
     const docs_step = b.step("docs", "Generate API documentation");
     const doc_install_path = "docs/api";
 
-    // Create a command to invoke `zig build-obj -femit-docs`.
-    // This correctly analyzes the public API of src/lib.zig.
     const gen_docs_cmd = b.addSystemCommand(&[_][]const u8{
         b.graph.zig_exe, // Use the same zig that is running the build
         "build-lib",
@@ -33,7 +31,6 @@ pub fn build(b: *std.Build) void {
         "-femit-docs=" ++ doc_install_path,
     });
 
-    // Ensure the docs/api directory exists before running the command by running `mkdir -p`
     const mkdir_cmd = b.addSystemCommand(&[_][]const u8{
         "mkdir", "-p", doc_install_path,
     });
@@ -78,36 +75,5 @@ pub fn build(b: *std.Build) void {
         const run_step_desc = b.fmt("Run the {s} example", .{exe_name});
         const run_step = b.step(run_step_name, run_step_desc);
         run_step.dependOn(&run_cmd.step);
-    }
-
-    // --- Coverage Setup ---
-    const coverage_step = b.step("coverage", "Generate code coverage report with kcov");
-
-    const host_os = b.graph.host.result.os.tag;
-    if (host_os == .linux or host_os == .macos) {
-        const kcov = b.findProgram(&.{"kcov"}, &.{}) catch {
-            std.log.warn("kcov not found, skipping coverage step. Please install kcov.", .{});
-            return;
-        };
-
-        const coverage_output_dir = b.fmt("{s}/coverage", .{b.cache_root.path orelse ".zig-cache"});
-
-        const kcov_cmd = b.addSystemCommand(&.{
-            kcov,
-            "--include-pattern=src/",
-            "--verify",
-            coverage_output_dir,
-        });
-
-        kcov_cmd.addArtifactArg(lib_unit_tests);
-
-        const install_coverage = b.addInstallDirectory(.{
-            .source_dir = .{ .cwd_relative = coverage_output_dir },
-            .install_dir = .prefix,
-            .install_subdir = "coverage",
-        });
-
-        coverage_step.dependOn(&install_coverage.step);
-        coverage_step.dependOn(&kcov_cmd.step);
     }
 }

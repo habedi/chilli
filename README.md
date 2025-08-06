@@ -7,10 +7,9 @@
 <h2>Chilli</h2>
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/chilli/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/actions/workflows/tests.yml)
-[![Code Coverage](https://img.shields.io/codecov/c/github/habedi/chilli?label=coverage&style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/chilli)
 [![CodeFactor](https://img.shields.io/codefactor/grade/github/habedi/chilli?label=code%20quality&style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/chilli)
-[![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
+[![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
 
 A microframework for creating command-line applications in Zig
@@ -144,13 +143,11 @@ pub fn main() anyerror!void {
 
 ### Documentation
 
-You can use the `make doc` command to generate the API documentation for Chilli.
+You can use the `make docs` command to generate the API documentation for Chilli.
 This will generate HTML documentation in the `docs/api` directory, which you can serve locally with `make serve-docs`
 and view in your web browser at `http://localhost:8000/index.html`.
 
 ### Examples
-
-Here’s your table with an added **Index** column:
 
 | **#** | **File**                                                  | **Description**                                                     |
 |-------|-----------------------------------------------------------|---------------------------------------------------------------------|
