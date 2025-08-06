@@ -152,14 +152,16 @@ and view in your web browser at `http://localhost:8000/index.html`.
 
 Here’s your table with an added **Index** column:
 
-| **#** | **File**                                                    | **Description**                                                     |
-|-------|-------------------------------------------------------------|---------------------------------------------------------------------|
-| 1     | [e1\_simple\_cli.zig](examples/e1_simple_cli.zig)           | A simple CLI application that shows basic command and flag parsing  |
-| 2     | [e2\_nested\_commands.zig](examples/e2_nested_commands.zig) | A CLI application with nested commands and subcommands              |
-| 3     | [e3\_help\_output.zig](examples/e3_help_output.zig)         | Example demonstrates automatic help output and usage information    |
-| 4     | [e4\_flags\_and\_args.zig](examples/e4_flags_and_args.zig)  | Example shows how to use flags and positional arguments in commands |
-| 5     | [e5\_custom\_sections.zig](examples/e5_custom_sections.zig) | Example demonstrates grouping subcommands into custom sections      |
-| 6     | [e6\_advanced\_cli.zig](examples/e6_advanced_cli.zig)       | More advanced example that combines multiple features of Chilli     |
+| **#** | **File**                                                  | **Description**                                                     |
+|-------|-----------------------------------------------------------|---------------------------------------------------------------------|
+| 1     | [e1_simple_cli.zig](examples/e1_simple_cli.zig)           | A simple CLI application that shows basic command and flag parsing  |
+| 2     | [e2_nested_commands.zig](examples/e2_nested_commands.zig) | A CLI application with nested commands and subcommands              |
+| 3     | [e3_help_output.zig](examples/e3_help_output.zig)         | Example demonstrates automatic help output and usage information    |
+| 4     | [e4_flags_and_args.zig](examples/e4_flags_and_args.zig)   | Example shows how to use flags and positional arguments in commands |
+| 5     | [e5_custom_sections.zig](examples/e5_custom_sections.zig) | Example demonstrates grouping subcommands into custom sections      |
+| 6     | [e6_advanced_cli.zig](examples/e6_advanced_cli.zig)       | More advanced example that combines multiple features of Chilli     |
+| 7     | [e7_file_downloader.zig](examples/e7_file_downloader.zig) | A CLI application that downloads files from the internet            |
+| 8     | [e8_calculator.zig](examples/e8_calculator.zig)           | A simple calculator CLI that supports basic arithmetic operations   |
 
 ### Feature Checklist
 

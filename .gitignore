@@ -103,3 +103,4 @@ docs/api/
 *.dylib
 *.dll
 *.exe
+latest
