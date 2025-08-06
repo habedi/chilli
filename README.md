@@ -25,7 +25,7 @@ while being small and fast, and not getting in the way of your application logic
 
 ### Features
 
-- Provides a simple, declarative API for building CLI applications
+- Provides a simple, low-overhead, declarative API for building CLI applications
 - Supports nested commands, subcommands, and aliases
 - Provides type-safe parsing for flags, positional arguments, and environment variables
 - Supports generating automatic `--help` and `--version` output with custom sections
@@ -157,11 +157,11 @@ Here’s your table with an added **Index** column:
 | 1     | [e1_simple_cli.zig](examples/e1_simple_cli.zig)           | A simple CLI application that shows basic command and flag parsing  |
 | 2     | [e2_nested_commands.zig](examples/e2_nested_commands.zig) | A CLI application with nested commands and subcommands              |
 | 3     | [e3_help_output.zig](examples/e3_help_output.zig)         | Example demonstrates automatic help output and usage information    |
-| 4     | [e4_flags_and_args.zig](examples/e4_flags_and_args.zig)   | Example shows how to use flags and positional arguments in commands |
-| 5     | [e5_custom_sections.zig](examples/e5_custom_sections.zig) | Example demonstrates grouping subcommands into custom sections      |
-| 6     | [e6_advanced_cli.zig](examples/e6_advanced_cli.zig)       | More advanced example that combines multiple features of Chilli     |
-| 7     | [e7_file_downloader.zig](examples/e7_file_downloader.zig) | A CLI application that downloads files from the internet            |
-| 8     | [e8_calculator.zig](examples/e8_calculator.zig)           | A simple calculator CLI that supports basic arithmetic operations   |
+| 4     | [e4_custom_sections.zig](examples/e4_custom_sections.zig) | Example demonstrates grouping subcommands into custom sections      |
+| 5     | [e5_advanced_cli.zig](examples/e5_advanced_cli.zig)       | More advanced example that combines multiple features of Chilli     |
+| 6     | [e6_file_downloader.zig](examples/e6_file_downloader.zig) | A CLI application that downloads files from the internet            |
+| 7     | [e7_calculator.zig](examples/e7_calculator.zig)           | A simple calculator CLI that supports basic arithmetic operations   |
+| 4     | [e8_flags_and_args.zig](examples/e8_flags_and_args.zig)   | Example shows how to use flags and positional arguments in commands |
 
 ### Feature Checklist
 

@@ -17,79 +17,60 @@ fn downloadExec(ctx: chilli.CommandContext) !void {
 
     var download_ctx = ctx.getContextData(DownloadContext).?;
 
-    // Determine output filename
-    const output_path = if (std.mem.eql(u8, output_path_arg, "")) blk: {
-        const filename = try getFilenameFromUrl(ctx.allocator, url);
-        defer ctx.allocator.free(filename);
-        break :blk try ctx.allocator.dupe(u8, filename);
-    } else try ctx.allocator.dupe(u8, output_path_arg);
-    defer ctx.allocator.free(output_path);
+    const output_path = if (output_path_arg.len > 0)
+        try download_ctx.allocator.dupe(u8, output_path_arg)
+    else
+        try getFilenameFromUrl(download_ctx.allocator, url);
+    defer download_ctx.allocator.free(output_path);
 
     if (verbose) {
         std.debug.print("Downloading: {s}\n", .{url});
         std.debug.print("Output file: {s}\n", .{output_path});
     }
 
-    // Parse the URL
     const uri = std.Uri.parse(url) catch |err| {
         std.debug.print("Error: Invalid URL: {any}\n", .{err});
         return;
     };
 
-    // Create HTTP request
+    var server_header_buffer: [16 * 1024]u8 = undefined;
     var req = download_ctx.client.open(.GET, uri, .{
-        .server_header_buffer = try ctx.allocator.alloc(u8, 16 * 1024),
+        .server_header_buffer = &server_header_buffer,
     }) catch |err| {
         std.debug.print("Error: Failed to create request: {any}\n", .{err});
         return;
     };
     defer req.deinit();
 
-    // Send request and wait for response
-    req.send() catch |err| {
-        std.debug.print("Error: Failed to send request: {any}\n", .{err});
-        return;
-    };
-
-    req.finish() catch |err| {
-        std.debug.print("Error: Failed to finish request: {any}\n", .{err});
-        return;
-    };
-
-    req.wait() catch |err| {
-        std.debug.print("Error: Failed to receive response: {any}\n", .{err});
-        return;
-    };
+    try req.send();
+    try req.finish();
+    try req.wait();
 
     if (req.response.status != .ok) {
         std.debug.print("Error: HTTP {d} - {s}\n", .{ @intFromEnum(req.response.status), @tagName(req.response.status) });
         return;
     }
 
-    // Create output file
     const file = std.fs.cwd().createFile(output_path, .{}) catch |err| {
         std.debug.print("Error: Failed to create output file: {any}\n", .{err});
         return;
     };
     defer file.close();
 
-    // Read and write response body
     var buffer: [8192]u8 = undefined;
     var total_bytes: u64 = 0;
 
+    // CORRECTED: Use a while(true) loop and break when read() returns 0.
     while (true) {
-        const bytes_read = req.readAll(buffer[0..]) catch |err| {
+        const bytes_read = req.reader().read(&buffer) catch |err| {
+            if (err == error.EndOfStream) break;
             std.debug.print("Error: Failed to read response: {any}\n", .{err});
             return;
         };
 
         if (bytes_read == 0) break;
 
-        file.writeAll(buffer[0..bytes_read]) catch |err| {
-            std.debug.print("Error: Failed to write to file: {any}\n", .{err});
-            return;
-        };
-
+        try file.writeAll(buffer[0..bytes_read]);
         total_bytes += bytes_read;
 
         if (verbose) {
@@ -105,9 +86,9 @@ fn downloadExec(ctx: chilli.CommandContext) !void {
 }
 
 fn getFilenameFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {
-    const uri = std.Uri.parse(url) catch return "downloaded_file";
+    const uri = std.Uri.parse(url) catch
+        return allocator.dupe(u8, "downloaded_file");
 
-    // Extract the path string from the Uri.Component
     const path_str = switch (uri.path) {
         .raw => |raw| raw,
         .percent_encoded => |encoded| encoded,
@@ -119,10 +100,10 @@ fn getFilenameFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8
         path_str;
 
     if (filename.len == 0) {
-        return try allocator.dupe(u8, "downloaded_file");
+        return allocator.dupe(u8, "downloaded_file");
     }
 
-    return try allocator.dupe(u8, filename);
+    return allocator.dupe(u8, filename);
 }
 
 pub fn main() !void {

@@ -26,8 +26,19 @@ fn multiplyExec(ctx: CommandContext) !void {
     std.debug.print("{d} * {d} = {d}\n", .{ a, b, result });
 }
 
-fn calculatorRootExec(_: CommandContext) !void {
-    std.debug.print("Please provide a subcommand (add, subtract, multiply) or use --help.\n", .{});
+fn calculatorRootExec(ctx: CommandContext) !void {
+    try ctx.command.printHelp();
+}
+
+/// Helper function to reduce boilerplate when creating operation commands.
+fn makeOperationCmd(
+    allocator: std.mem.Allocator,
+    options: CommandOptions,
+) !*Command {
+    var cmd = try Command.init(allocator, options);
+    try cmd.addPositional(PositionalArg{ .name = "a", .description = "First number", .is_required = true, .type = .Float });
+    try cmd.addPositional(PositionalArg{ .name = "b", .description = "Second number", .is_required = true, .type = .Float });
+    return cmd;
 }
 
 pub fn main() !void {
@@ -42,29 +53,23 @@ pub fn main() !void {
     });
     defer root_cmd.deinit();
 
-    var add_cmd = try Command.init(allocator, CommandOptions{
+    const add_cmd = try makeOperationCmd(allocator, .{
         .name = "add",
         .description = "Adds two numbers.",
         .exec = addExec,
     });
-    try add_cmd.addPositional(PositionalArg{ .name = "a", .description = "First number", .is_required = true, .type = .Float });
-    try add_cmd.addPositional(PositionalArg{ .name = "b", .description = "Second number", .is_required = true, .type = .Float });
 
-    var subtract_cmd = try Command.init(allocator, CommandOptions{
+    const subtract_cmd = try makeOperationCmd(allocator, .{
         .name = "subtract",
         .description = "Subtracts two numbers.",
         .exec = subtractExec,
     });
-    try subtract_cmd.addPositional(PositionalArg{ .name = "a", .description = "First number", .is_required = true, .type = .Float });
-    try subtract_cmd.addPositional(PositionalArg{ .name = "b", .description = "Second number", .is_required = true, .type = .Float });
 
-    var multiply_cmd = try Command.init(allocator, CommandOptions{
+    const multiply_cmd = try makeOperationCmd(allocator, .{
         .name = "multiply",
         .description = "Multiplies two numbers.",
         .exec = multiplyExec,
     });
-    try multiply_cmd.addPositional(PositionalArg{ .name = "a", .description = "First number", .is_required = true, .type = .Float });
-    try multiply_cmd.addPositional(PositionalArg{ .name = "b", .description = "Second number", .is_required = true, .type = .Float });
 
     try root_cmd.addSubcommand(add_cmd);
     try root_cmd.addSubcommand(subtract_cmd);

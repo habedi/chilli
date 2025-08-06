@@ -32,7 +32,16 @@ fn addExec(ctx: chilli.CommandContext) !void {
     const stdout = std.io.getStdOut().writer();
     const precision_int: u32 = @intFromFloat(@max(0.0, @min(precision, 20.0)));
 
-    try stdout.print("Result: {d:.[1]}\n", .{ result, precision_int });
+    // FINAL CORRECTED VERSION:
+    // This uses the 'd' specifier (for decimal float) and the named argument
+    // syntax for precision `.[prec]`, which are both correct for Zig 0.14.1.
+    var buf: [64]u8 = undefined;
+    const formatted_result = try std.fmt.bufPrint(&buf, "{d:.[prec]}", .{
+        .num = result,
+        .prec = precision_int,
+    });
+
+    try stdout.print("Result: {s}\n", .{formatted_result});
 }
 
 fn greetExec(ctx: chilli.CommandContext) !void {
