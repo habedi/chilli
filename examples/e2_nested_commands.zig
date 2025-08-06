@@ -56,3 +56,22 @@ pub fn main() anyerror!void {
 
     try root_cmd.run(null);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e2_nested_commands
+//
+// 2. Run with different arguments:
+//
+//    // Show help for the root 'app' command
+//    ./zig-out/bin/e2_nested_commands --help
+//
+//    // Show help for the 'db' subcommand
+//    ./zig-out/bin/e2_nested_commands db --help
+//
+//    // Execute the 'db migrate' command
+//    ./zig-out/bin/e2_nested_commands db migrate
+//
+//    // Execute the 'db seed' command with its required file argument
+//    ./zig-out/bin/e2_nested_commands db seed data/seeds.sql

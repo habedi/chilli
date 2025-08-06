@@ -157,3 +157,19 @@ pub fn main() !void {
 
     try root_cmd.run(&download_ctx);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e6_file_downloader
+//
+// 2. Run with different arguments:
+//
+//    // Show the help message
+//    ./zig-out/bin/e6_file_downloader --help
+//
+//    // Download a file, letting the program determine the output filename
+//    ./zig-out/bin/e6_file_downloader download https://ziglang.org/zig-logo.svg
+//
+//    // Download a file with verbose logging and a specified output filename
+//    ./zig-out/bin/e6_file_downloader -v download https://ziglang.org/documentation/master/std/std.zig zig_std.zig

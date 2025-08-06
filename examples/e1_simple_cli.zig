@@ -80,3 +80,22 @@ fn runExec(ctx: chilli.CommandContext) anyerror!void {
         }
     }
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e1_simple_cli
+//
+// 2. Run with different arguments:
+//
+//    // Show the help output for the root command
+//    ./zig-out/bin/e1_simple_cli --help
+//
+//    // Run the 'run' subcommand with a task name and a list of files
+//    ./zig-out/bin/e1_simple_cli run build-assets main.js styles.css script.js
+//
+//    // Use the --config flag from the root command
+//    ./zig-out/bin/e1_simple_cli --config ./custom.conf run process-logs
+//
+//    // Use the environment variable to set the config path
+//    CHILLI_APP_CONFIG=~/.config/chilli.conf ./zig-out/bin/e1_simple_cli run check-status

@@ -77,3 +77,19 @@ pub fn main() !void {
 
     try root_cmd.run(null);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e7_calculator
+//
+// 2. Run with different arguments:
+//
+//    // Add two numbers
+//    ./zig-out/bin/e7_calculator add 10.5 22
+//
+//    // Subtract two numbers
+//    ./zig-out/bin/e7_calculator subtract 100 42.5
+//
+//    // Multiply two numbers
+//    ./zig-out/bin/e7_calculator multiply -5.5 10

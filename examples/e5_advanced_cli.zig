@@ -112,3 +112,22 @@ pub fn main() anyerror!void {
 
     try root_cmd.run(&app_context);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e5_advanced_cli
+//
+// 2. Run with different arguments:
+//
+//    // Add two numbers
+//    ./zig-out/bin/e5_advanced_cli add 15 27
+//
+//    // Use the 'sum' alias, the persistent '--verbose' flag, and the local '--precision' flag
+//    ./zig-out/bin/e5_advanced_cli --verbose sum 10 5.5 --precision=4
+//
+//    // Greet the default 'World'
+//    ./zig-out/bin/e5_advanced_cli greet
+//
+//    // Greet a specific person
+//    ./zig-out/bin/e5_advanced_cli greet Ziggy

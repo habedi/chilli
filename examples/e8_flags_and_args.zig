@@ -77,3 +77,22 @@ pub fn main() anyerror!void {
 
     try root_cmd.run(null);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e8_flags_and_args
+//
+// 2. Run with different arguments:
+//
+//    // Show the help output
+//    ./zig-out/bin/e8_flags_and_args --help
+//
+//    // Run with only the required argument
+//    ./zig-out/bin/e8_flags_and_args required_value
+//
+//    // Run with all arguments and a mix of long and short flags
+//    ./zig-out/bin/e8_flags_and_args req_val opt_val --count 10 -f
+//
+//    // Run with variadic arguments and grouped boolean flags
+//    ./zig-out/bin/e8_flags_and_args req_val opt_val extra1 extra2 extra3 -cf
