@@ -7,10 +7,9 @@
 <h2>Chilli</h2>
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/chilli/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/actions/workflows/tests.yml)
-[![Code Coverage](https://img.shields.io/codecov/c/github/habedi/chilli?label=coverage&style=flat&labelColor=282c34&logo=codecov)](https://codecov.io/gh/habedi/chilli)
 [![CodeFactor](https://img.shields.io/codefactor/grade/github/habedi/chilli?label=code%20quality&style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/chilli)
-[![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
+[![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
 
 A microframework for creating command-line applications in Zig
@@ -25,7 +24,7 @@ while being small and fast, and not getting in the way of your application logic
 
 ### Features
 
-- Provides a simple, declarative API for building CLI applications
+- Provides a simple, low-overhead, declarative API for building CLI applications
 - Supports nested commands, subcommands, and aliases
 - Provides type-safe parsing for flags, positional arguments, and environment variables
 - Supports generating automatic `--help` and `--version` output with custom sections
@@ -144,24 +143,24 @@ pub fn main() anyerror!void {
 
 ### Documentation
 
-You can use the `make doc` command to generate the API documentation for Chilli.
-This will generate HTML documentation in the [docs/api](docs/api/index.html) directory, which you can serve locally with
-`make serve-docs` and view in your web browser at `http://localhost:8000/index.html`.
+You can use the `make docs` command to generate the API documentation for Chilli.
+This will generate HTML documentation in the `docs/api` directory, which you can serve locally with `make serve-docs`
+and view in your web browser at `http://localhost:8000/index.html`.
 
 ### Examples
 
-Here’s your table with an added **Index** column:
+| **#** | **File**                                                  | **Description**                                                          |
+|-------|-----------------------------------------------------------|--------------------------------------------------------------------------|
+| 1     | [e1_simple_cli.zig](examples/e1_simple_cli.zig)           | A simple CLI application that shows basic command and flag parsing       |
+| 2     | [e2_nested_commands.zig](examples/e2_nested_commands.zig) | A CLI application with nested commands and subcommands                   |
+| 3     | [e3_help_output.zig](examples/e3_help_output.zig)         | An example that demonstrates automatic help output and usage information |
+| 4     | [e4_custom_sections.zig](examples/e4_custom_sections.zig) | An example that demonstrates grouping subcommands into custom sections   |
+| 5     | [e5_advanced_cli.zig](examples/e5_advanced_cli.zig)       | An example that combines multiple features of Chilli                     |
+| 6     | [e6_file_downloader.zig](examples/e6_file_downloader.zig) | A CLI application that downloads files from the internet                 |
+| 7     | [e7_calculator.zig](examples/e7_calculator.zig)           | A simple calculator CLI that supports basic arithmetic operations        |
+| 8     | [e8_flags_and_args.zig](examples/e8_flags_and_args.zig)   | Example shows how to use flags and positional arguments in commands      |
 
-| **#** | **File**                                                    | **Description**                                                     |
-|-------|-------------------------------------------------------------|---------------------------------------------------------------------|
-| 1     | [e1\_simple\_cli.zig](examples/e1_simple_cli.zig)           | A simple CLI application that shows basic command and flag parsing  |
-| 2     | [e2\_nested\_commands.zig](examples/e2_nested_commands.zig) | A CLI application with nested commands and subcommands              |
-| 3     | [e3\_help\_output.zig](examples/e3_help_output.zig)         | Example demonstrates automatic help output and usage information    |
-| 4     | [e4\_flags\_and\_args.zig](examples/e4_flags_and_args.zig)  | Example shows how to use flags and positional arguments in commands |
-| 5     | [e5\_custom\_sections.zig](examples/e5_custom_sections.zig) | Example demonstrates grouping subcommands into custom sections      |
-| 6     | [e6\_advanced\_cli.zig](examples/e6_advanced_cli.zig)       | More advanced example that combines multiple features of Chilli     |
-
-### Feature Checklist
+### Feature Roadmap
 
 -   [x] **Command Structure**
     -   [x] Nested commands and subcommands
@@ -186,6 +185,7 @@ Here’s your table with an added **Index** column:
     -   [x] Shared context data for passing application state
     -   [ ] Deprecation notices for commands or flags
     -   [ ] Built-in TUI components (like spinners and progress bars)
+    -   [ ] Automatic command history and completion
 
 ---
 

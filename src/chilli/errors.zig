@@ -6,7 +6,7 @@ const std = @import("std");
 
 /// The set of all possible errors returned by the Chilli framework.
 pub const Error = error{
-    /// An unknown flag was provided (e.g., `--nonexistent`).
+    /// An unknown flag was provided (like `--nonexistent`).
     UnknownFlag,
     /// A flag that requires a value was provided without one.
     MissingFlagValue,

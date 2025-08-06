@@ -11,8 +11,10 @@ pub fn main() anyerror!void {
     const allocator = gpa.allocator();
 
     var app_context = AppContext{
-        .config_path = "", // Will be populated by the root command's exec
+        .config_path = "",
     };
+
+    defer if (app_context.config_path.len > 0) allocator.free(app_context.config_path);
 
     const root_options = chilli.CommandOptions{
         .name = "chilli-app",
@@ -32,7 +34,6 @@ pub fn main() anyerror!void {
     };
     try root_command.addFlag(config_flag);
 
-    // --- `run` subcommand with variadic arguments ---
     const run_options = chilli.CommandOptions{
         .name = "run",
         .description = "Runs a task against a list of files.",
@@ -41,14 +42,12 @@ pub fn main() anyerror!void {
     var run_command = try chilli.Command.init(allocator, run_options);
     try root_command.addSubcommand(run_command);
 
-    // A required, typed positional argument
     try run_command.addPositional(.{
         .name = "task-name",
         .description = "The name of the task to run.",
         .is_required = true,
-        .type = .String, // Explicitly a string
+        .type = .String,
     });
-    // A variadic positional argument to capture all remaining values
     try run_command.addPositional(.{
         .name = "files",
         .description = "A list of files to process.",
@@ -61,29 +60,50 @@ pub fn main() anyerror!void {
 fn rootExec(ctx: chilli.CommandContext) anyerror!void {
     const app_ctx = ctx.getContextData(AppContext).?;
     const config_slice = try ctx.getFlag("config", []const u8);
+    const stdout = std.io.getStdOut().writer();
 
-    // The slice from getFlag can point to temporary memory. To safely store it,
-    // it must be copied. The context's allocator is valid for this exec call.
-    app_ctx.config_path = try ctx.allocator.dupe(u8, config_slice);
+    if (app_ctx.config_path.len > 0) {
+        ctx.app_allocator.free(app_ctx.config_path);
+    }
+    app_ctx.config_path = try ctx.app_allocator.dupe(u8, config_slice);
 
-    std.debug.print("Welcome to chilli-app!\n", .{});
-    std.debug.print("  Using config file: {s}\n\n", .{app_ctx.config_path});
+    try stdout.print("Welcome to chilli-app!\n", .{});
+    try stdout.print("  Using config file: {s}\n\n", .{app_ctx.config_path});
     try ctx.command.printHelp();
 }
 
 fn runExec(ctx: chilli.CommandContext) anyerror!void {
-    // Access positional arguments by name, now with type safety
     const task_name = try ctx.getArg("task-name", []const u8);
-    const files = ctx.getArgs("files"); // Variadic arguments remain string slices
+    const files = ctx.getArgs("files");
+    const stdout = std.io.getStdOut().writer();
 
-    std.debug.print("Running task '{s}'...\n", .{task_name});
+    try stdout.print("Running task '{s}'...\n", .{task_name});
 
     if (files.len == 0) {
-        std.debug.print("No files provided to process.\n", .{});
+        try stdout.print("No files provided to process.\n", .{});
     } else {
-        std.debug.print("Processing {d} files:\n", .{files.len});
+        try stdout.print("Processing {d} files:\n", .{files.len});
         for (files) |file| {
-            std.debug.print("  - {s}\n", .{file});
+            try stdout.print("  - {s}\n", .{file});
         }
     }
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e1_simple_cli
+//
+// 2. Run with different arguments:
+//
+//    // Show the help output for the root command
+//    ./zig-out/bin/e1_simple_cli --help
+//
+//    // Run the 'run' subcommand with a task name and a list of files
+//    ./zig-out/bin/e1_simple_cli run build-assets main.js styles.css script.js
+//
+//    // Use the --config flag from the root command
+//    ./zig-out/bin/e1_simple_cli --config ./custom.conf run process-logs
+//
+//    // Use the environment variable to set the config path
+//    CHILLI_APP_CONFIG=~/.config/chilli.conf ./zig-out/bin/e1_simple_cli run check-status

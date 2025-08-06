@@ -192,7 +192,8 @@ pub const Command = struct {
         }
 
         const ctx = context.CommandContext{
-            .allocator = arena_allocator,
+            .app_allocator = self.allocator,
+            .tmp_allocator = arena_allocator,
             .command = current_cmd,
             .data = data,
         };
@@ -385,7 +386,59 @@ pub const Command = struct {
     }
 };
 
+// Tests for the `command` module
+
+const testing = std.testing;
+
 fn dummyExec(_: context.CommandContext) !void {}
+
+test "command: findSubcommand by alias and shortcut" {
+    const allocator = testing.allocator;
+    var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
+    defer root.deinit();
+
+    const sub = try Command.init(allocator, .{
+        .name = "sub",
+        .description = "",
+        .aliases = &[_][]const u8{ "alias1", "alias2" },
+        .shortcut = 's',
+        .exec = dummyExec,
+    });
+
+    try root.addSubcommand(sub);
+    try testing.expect(root.findSubcommand("sub").? == sub);
+    try testing.expect(root.findSubcommand("alias1").? == sub);
+    try testing.expect(root.findSubcommand("alias2").? == sub);
+    try testing.expect(root.findSubcommand("s").? == sub);
+    try testing.expect(root.findSubcommand("nonexistent") == null);
+}
+
+var integration_flag_val: bool = false;
+var integration_arg_val: []const u8 = "";
+
+fn integrationExec(ctx: context.CommandContext) !void {
+    integration_flag_val = try ctx.getFlag("verbose", bool);
+    integration_arg_val = try ctx.getArg("file", []const u8);
+}
+
+test "command: execute with args and flags" {
+    const allocator = testing.allocator;
+    var root = try Command.init(allocator, .{ .name = "root", .description = "", .exec = dummyExec });
+    defer root.deinit();
+    var sub = try Command.init(allocator, .{ .name = "sub", .description = "", .exec = integrationExec });
+    try root.addSubcommand(sub);
+
+    try sub.addFlag(.{ .name = "verbose", .shortcut = 'v', .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
+    try sub.addPositional(.{ .name = "file", .is_required = true, .description = "" });
+
+    var failed_cmd: ?*const Command = null;
+    const args = &[_][]const u8{ "sub", "--verbose", "input.txt" };
+    try root.execute(args, null, &failed_cmd);
+
+    try testing.expect(failed_cmd == null);
+    try testing.expect(integration_flag_val);
+    try testing.expectEqualStrings("input.txt", integration_arg_val);
+}
 
 test "command: addSubcommand detects empty alias" {
     const allocator = std.testing.allocator;

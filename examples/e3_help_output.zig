@@ -53,3 +53,12 @@ pub fn main() anyerror!void {
     std.debug.print("\n--- Help for subcommand ('help-demo sub --help') ---\n", .{});
     try sub_cmd.printHelp();
 }
+
+// Example Invocation
+//
+// This example does not parse command-line arguments. Instead, its main function
+// programmatically builds the command structure and prints the help messages to
+// show what the output looks like.
+//
+// You can run it directly with:
+//    zig build run-e3_help_output

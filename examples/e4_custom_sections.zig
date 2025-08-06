@@ -58,3 +58,14 @@ pub fn main() anyerror!void {
 
     try root_cmd.run(null);
 }
+
+// Example Invocation
+//
+// This example's main purpose is to demonstrate the custom section titles in the
+// help output. The root command is configured to print its help message by default.
+//
+// You can see the formatted output by running:
+//    zig build run-e4_custom_sections
+//
+// Or, to invoke help explicitly:
+//    ./zig-out/bin/e4_custom_sections --help

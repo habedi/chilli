@@ -12,7 +12,7 @@ CACHE_DIR     := .zig-cache
 BINARY_NAME   := example
 RELEASE_MODE := ReleaseSmall
 TEST_FLAGS := --summary all #--verbose
-JUNK_FILES := *.o *.obj *.dSYM
+JUNK_FILES := *.o *.obj *.dSYM *.dll *.so *.dylib *.a *.lib *.pdb
 
 # Automatically find all example names
 EXAMPLES      := $(patsubst %.zig,%,$(notdir $(wildcard examples/*.zig)))
@@ -25,7 +25,7 @@ SHELL         := /usr/bin/env bash
 # Targets
 ################################################################################
 
-.PHONY: all help build rebuild run test release clean lint format docs serve-docs install-deps coverage setup-hooks test-hooks
+.PHONY: all help build rebuild run test release clean lint format docs serve-docs install-deps setup-hooks test-hooks
 .DEFAULT_GOAL := help
 
 help: ## Show the help messages for all targets
@@ -65,7 +65,7 @@ release: ## Build in Release mode
 	@$(MAKE) BUILD_TYPE=$(RELEASE_MODE) build
 
 clean: ## Remove docs, build artifacts, and cache directories
-	@echo "Removing build artifacts, cache, generated docs, and coverage files..."
+	@echo "Removing build artifacts, cache, generated docs, and junk files..."
 	@rm -rf $(BUILD_DIR) $(CACHE_DIR) $(JUNK_FILES) docs/api public
 
 lint: ## Check code style and formatting of Zig files
@@ -89,10 +89,6 @@ install-deps: ## Install system dependencies (for Debian-based systems)
 	@sudo apt-get update
 	@sudo apt-get install -y make llvm snapd
 	@sudo snap install zig --beta --classic
-
-coverage: test ## Generate code coverage report
-	@echo "Generating coverage report..."
-	@kcov --include-pattern=src --verify coverage-out zig-out/bin/simple_cli
 
 setup-hooks: ## Install Git hooks (pre-commit and pre-push)
 	@echo "Setting up Git hooks..."

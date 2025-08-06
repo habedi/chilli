@@ -32,7 +32,13 @@ fn addExec(ctx: chilli.CommandContext) !void {
     const stdout = std.io.getStdOut().writer();
     const precision_int: u32 = @intFromFloat(@max(0.0, @min(precision, 20.0)));
 
-    try stdout.print("Result: {d:.[1]}\n", .{ result, precision_int });
+    var buf: [64]u8 = undefined;
+    const formatted_result = try std.fmt.bufPrint(&buf, "{d:.[prec]}", .{
+        .num = result,
+        .prec = precision_int,
+    });
+
+    try stdout.print("Result: {s}\n", .{formatted_result});
 }
 
 fn greetExec(ctx: chilli.CommandContext) !void {
@@ -103,3 +109,22 @@ pub fn main() anyerror!void {
 
     try root_cmd.run(&app_context);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e5_advanced_cli
+//
+// 2. Run with different arguments:
+//
+//    // Add two numbers
+//    ./zig-out/bin/e5_advanced_cli add 15 27
+//
+//    // Use the 'sum' alias, the persistent '--verbose' flag, and the local '--precision' flag
+//    ./zig-out/bin/e5_advanced_cli --verbose sum 10 5.5 --precision=4
+//
+//    // Greet the default 'World'
+//    ./zig-out/bin/e5_advanced_cli greet
+//
+//    // Greet a specific person
+//    ./zig-out/bin/e5_advanced_cli greet Ziggy

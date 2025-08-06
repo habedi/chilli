@@ -10,15 +10,17 @@ fn exec(ctx: chilli.CommandContext) !void {
     const optional_arg = try ctx.getArg("optional-arg", []const u8);
     const variadic_args = ctx.getArgs("variadic-args");
 
-    std.debug.print("Flags:\n", .{});
-    std.debug.print("  --count: {d}\n", .{count});
-    std.debug.print("  --message: {s}\n", .{message});
-    std.debug.print("  --force: {}\n", .{force});
+    const stdout = std.io.getStdOut().writer();
 
-    std.debug.print("\nArguments:\n", .{});
-    std.debug.print("  required-arg: {s}\n", .{required_arg});
-    std.debug.print("  optional-arg: {s}\n", .{optional_arg});
-    std.debug.print("  variadic-args: {s}\n", .{variadic_args});
+    try stdout.print("Flags:\n", .{});
+    try stdout.print("  --count: {d}\n", .{count});
+    try stdout.print("  --message: {s}\n", .{message});
+    try stdout.print("  --force: {}\n", .{force});
+
+    try stdout.print("\nArguments:\n", .{});
+    try stdout.print("  required-arg: {s}\n", .{required_arg});
+    try stdout.print("  optional-arg: {s}\n", .{optional_arg});
+    try stdout.print("  variadic-args: {s}\n", .{variadic_args});
 }
 
 pub fn main() anyerror!void {
@@ -58,9 +60,8 @@ pub fn main() anyerror!void {
 
     try root_cmd.addPositional(.{
         .name = "required-arg",
-        .description = "A required argument (now optional for 'make run' to succeed).",
-        .is_required = false,
-        .default_value = .{ .String = "default-required-val" },
+        .description = "A truly required argument.",
+        .is_required = true,
     });
 
     try root_cmd.addPositional(.{
@@ -78,3 +79,22 @@ pub fn main() anyerror!void {
 
     try root_cmd.run(null);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e8_flags_and_args
+//
+// 2. Run with different arguments:
+//
+//    // Show the help output
+//    ./zig-out/bin/e8_flags_and_args --help
+//
+//    // Run with only the required argument
+//    ./zig-out/bin/e8_flags_and_args required_value
+//
+//    // Run with all arguments and a mix of long and short flags
+//    ./zig-out/bin/e8_flags_and_args req_val opt_val --count 10 -f
+//
+//    // Run with variadic arguments and grouped boolean flags
+//    ./zig-out/bin/e8_flags_and_args req_val opt_val extra1 extra2 extra3 -cf

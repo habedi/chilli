@@ -204,6 +204,8 @@ pub fn printSubcommands(cmd: *const command.Command, writer: anytype) !void {
     }
 }
 
+// Tests for the `utils` module
+
 test "utils: parseBool" {
     try std.testing.expect(try parseBool("true"));
     try std.testing.expect(try parseBool("TRUE"));

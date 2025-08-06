@@ -7,12 +7,14 @@ fn rootExec(ctx: chilli.CommandContext) !void {
 
 fn dbMigrateExec(ctx: chilli.CommandContext) !void {
     _ = ctx;
-    std.debug.print("Running database migrations...\n", .{});
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("Running database migrations...\n", .{});
 }
 
 fn dbSeedExec(ctx: chilli.CommandContext) !void {
     const file = try ctx.getArg("file", []const u8);
-    std.debug.print("Seeding database from file: {s}\n", .{file});
+    const stdout = std.io.getStdOut().writer();
+    try stdout.print("Seeding database from file: {s}\n", .{file});
 }
 
 pub fn main() anyerror!void {
@@ -56,3 +58,22 @@ pub fn main() anyerror!void {
 
     try root_cmd.run(null);
 }
+
+// Example Invocations
+//
+// 1. Build the example executable:
+//    zig build e2_nested_commands
+//
+// 2. Run with different arguments:
+//
+//    // Show help for the root 'app' command
+//    ./zig-out/bin/e2_nested_commands --help
+//
+//    // Show help for the 'db' subcommand
+//    ./zig-out/bin/e2_nested_commands db --help
+//
+//    // Execute the 'db migrate' command
+//    ./zig-out/bin/e2_nested_commands db migrate
+//
+//    // Execute the 'db seed' command with its required file argument
+//    ./zig-out/bin/e2_nested_commands db seed data/seeds.sql

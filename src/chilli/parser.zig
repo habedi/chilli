@@ -152,8 +152,27 @@ pub fn validateArgs(cmd: *command.Command) errors.Error!void {
     }
 }
 
+// Tests for the `parser` module
+
+const testing = std.testing;
 const context = @import("context.zig");
+
 fn dummyExec(_: context.CommandContext) !void {}
+
+fn newTestCmd(allocator: std.mem.Allocator) !*command.Command {
+    var cmd = try command.Command.init(allocator, .{
+        .name = "test",
+        .description = "",
+        .exec = dummyExec,
+    });
+    errdefer cmd.deinit();
+
+    try cmd.addFlag(.{ .name = "output", .shortcut = 'o', .type = .String, .default_value = .{ .String = "" }, .description = "" });
+    try cmd.addFlag(.{ .name = "verbose", .shortcut = 'v', .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
+    try cmd.addFlag(.{ .name = "force", .shortcut = 'f', .type = .Bool, .default_value = .{ .Bool = false }, .description = "" });
+
+    return cmd;
+}
 
 test "parser: short flag with attached value" {
     const allocator = std.testing.allocator;
@@ -183,4 +202,112 @@ test "parser: short flag with attached value" {
         .String => |s| try std.testing.expectEqualStrings("test.txt", s),
         else => std.testing.panic("Expected string value, got {any}", .{value}),
     }
+}
+
+test "parser: long flag formats" {
+    const allocator = testing.allocator;
+    var cmd = try newTestCmd(allocator);
+    defer cmd.deinit();
+
+    // Test --flag=value
+    var it1 = ArgIterator.init(&[_][]const u8{"--output=file.txt"});
+    try parseArgsAndFlags(&cmd, &it1);
+    try testing.expectEqualStrings("output", cmd.parsed_flags.items[0].name);
+    try testing.expectEqualStrings("file.txt", cmd.parsed_flags.items[0].value.String);
+    cmd.parsed_flags.shrinkRetainingCapacity(0);
+
+    // Test --flag value
+    var it2 = ArgIterator.init(&[_][]const u8{ "--output", "file.txt" });
+    try parseArgsAndFlags(&cmd, &it2);
+    try testing.expectEqualStrings("output", cmd.parsed_flags.items[0].name);
+    try testing.expectEqualStrings("file.txt", cmd.parsed_flags.items[0].value.String);
+}
+
+test "parser: short flag formats" {
+    const allocator = testing.allocator;
+    var cmd = try newTestCmd(allocator);
+    defer cmd.deinit();
+
+    // Test -f value
+    var it1 = ArgIterator.init(&[_][]const u8{ "-o", "file.txt" });
+    try parseArgsAndFlags(&cmd, &it1);
+    try testing.expectEqualStrings("output", cmd.parsed_flags.items[0].name);
+    try testing.expectEqualStrings("file.txt", cmd.parsed_flags.items[0].value.String);
+    cmd.parsed_flags.shrinkRetainingCapacity(0);
+
+    // Test grouped booleans
+    var it2 = ArgIterator.init(&[_][]const u8{"-vf"});
+    try parseArgsAndFlags(&cmd, &it2);
+    try testing.expectEqual(2, cmd.parsed_flags.items.len);
+    try testing.expectEqualStrings("verbose", cmd.parsed_flags.items[0].name);
+    try testing.expect(cmd.parsed_flags.items[0].value.Bool);
+    try testing.expectEqualStrings("force", cmd.parsed_flags.items[1].name);
+    try testing.expect(cmd.parsed_flags.items[1].value.Bool);
+    cmd.parsed_flags.shrinkRetainingCapacity(0);
+
+    // Test grouped booleans with value-taking flag at the end
+    var it3 = ArgIterator.init(&[_][]const u8{ "-vfo", "file.txt" });
+    try parseArgsAndFlags(&cmd, &it3);
+    try testing.expectEqual(3, cmd.parsed_flags.items.len);
+    try testing.expectEqualStrings("verbose", cmd.parsed_flags.items[0].name);
+    try testing.expectEqualStrings("force", cmd.parsed_flags.items[1].name);
+    try testing.expectEqualStrings("output", cmd.parsed_flags.items[2].name);
+    try testing.expectEqualStrings("file.txt", cmd.parsed_flags.items[2].value.String);
+}
+
+test "parser: -- terminator" {
+    const allocator = testing.allocator;
+    var cmd = try newTestCmd(allocator);
+    defer cmd.deinit();
+
+    var it = ArgIterator.init(&[_][]const u8{ "--verbose", "--", "--output", "-f" });
+    try parseArgsAndFlags(&cmd, &it);
+
+    try testing.expectEqual(1, cmd.parsed_flags.items.len);
+    try testing.expectEqualStrings("verbose", cmd.parsed_flags.items[0].name);
+
+    try testing.expectEqual(2, cmd.parsed_positionals.items.len);
+    try testing.expectEqualStrings("--output", cmd.parsed_positionals.items[0]);
+    try testing.expectEqualStrings("-f", cmd.parsed_positionals.items[1]);
+}
+
+test "parser: error conditions" {
+    const allocator = testing.allocator;
+    var cmd = try newTestCmd(allocator);
+    defer cmd.deinit();
+
+    // Unknown long flag
+    var it1 = ArgIterator.init(&[_][]const u8{"--nonexistent"});
+    try testing.expectError(errors.Error.UnknownFlag, parseArgsAndFlags(&cmd, &it1));
+
+    // Unknown short flag
+    var it2 = ArgIterator.init(&[_][]const u8{"-x"});
+    try testing.expectError(errors.Error.UnknownFlag, parseArgsAndFlags(&cmd, &it2));
+
+    // Missing value
+    var it3 = ArgIterator.init(&[_][]const u8{"--output"});
+    try testing.expectError(errors.Error.MissingFlagValue, parseArgsAndFlags(&cmd, &it3));
+}
+
+test "parser: argument validation" {
+    const allocator = testing.allocator;
+    var cmd = try command.Command.init(allocator, .{ .name = "test", .description = "", .exec = dummyExec });
+    defer cmd.deinit();
+
+    try cmd.addPositional(.{ .name = "req", .is_required = true, .description = "" });
+    try cmd.addPositional(.{ .name = "opt", .default_value = .{ .String = "" }, .description = "" });
+
+    // Missing required
+    cmd.parsed_positionals.clearRetainingCapacity();
+    try testing.expectError(errors.Error.MissingRequiredArgument, validateArgs(&cmd));
+
+    // Too many arguments
+    cmd.parsed_positionals.clearRetainingCapacity();
+    try cmd.parsed_positionals.appendSlice(&[_][]const u8{ "a", "b", "c" });
+    try testing.expectError(errors.Error.TooManyArguments, validateArgs(&cmd));
+
+    // Correct number
+    cmd.parsed_positionals.clearRetainingCapacity();
+    try cmd.parsed_positionals.appendSlice(&[_][]const u8{ "a", "b" });
+    try validateArgs(&cmd);
 }
