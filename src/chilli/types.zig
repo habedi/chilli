@@ -89,6 +89,8 @@ pub const PositionalArg = struct {
     variadic: bool = false,
 };
 
+// Tests for the `types` module
+
 test "types: parseValue" {
     // Bool
     try std.testing.expect((try parseValue(.Bool, "true")).Bool);
