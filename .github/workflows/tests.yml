@@ -1,12 +1,17 @@
 name: Run Tests
 
 on:
-  workflow_dispatch:
-  pull_request:
+  push:
     branches:
       - main
     tags:
       - 'v*'
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,11 +24,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Install Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: '0.14.1'
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y make
-          make install-deps
 
       - name: Run the Tests
         run: make test
