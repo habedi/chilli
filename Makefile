@@ -35,7 +35,7 @@ help: ## Show the help messages for all targets
 	@grep -E '^[a-zA-Z_-]+:.*## .*$$' Makefile | \
 	awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-all: build test lint doc  ## build, test, lint, and doc
+all: build test lint docs  ## build, test, lint, and doc
 
 build: ## Build project (Mode=$(BUILD_TYPE))
 	@echo "Building project in $(BUILD_TYPE) mode with $(JOBS) concurrent jobs..."
