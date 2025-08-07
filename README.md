@@ -9,8 +9,10 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/chilli/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/actions/workflows/tests.yml)
 [![CodeFactor](https://img.shields.io/codefactor/grade/github/habedi/chilli?label=code%20quality&style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/chilli)
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
-[![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
+[![Docs](https://img.shields.io/github/v/tag/habedi/chilli?label=docs&color=blue&style=flat&labelColor=282c34&logo=read-the-docs)](https://habedi.github.io/chilli/)
+[![Examples](https://img.shields.io/github/v/tag/habedi/chilli?label=examples&color=green&style=flat&labelColor=282c34&logo=zig)](https://github.com/habedi/chilli/tree/main/examples)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
 
 A microframework for creating command-line applications in Zig
 
@@ -30,11 +32,6 @@ while being small and fast, and not getting in the way of your application logic
 - Supports generating automatic `--help` and `--version` output with custom sections
 - Uses a shared context to pass application state
 - Written in pure Zig with no external dependencies
-
-> [!IMPORTANT]
-> Chilli is in early development and is not yet ready for serious use.
-> The API is not stable and may change without notice.
-> Please use the [issues page](https://github.com/habedi/chilli/issues) to report bugs or request features.
 
 ---
 
@@ -143,22 +140,20 @@ pub fn main() anyerror!void {
 
 ### Documentation
 
-You can use the `make docs` command to generate the API documentation for Chilli.
+You can find the full API documentation for the latest release of Chilli [here](https://habedi.github.io/chilli/).
+
+Alternatively, you can use the `make docs` command to generate the API documentation for the current version of Chilli
+from the source code.
 This will generate HTML documentation in the `docs/api` directory, which you can serve locally with `make serve-docs`
-and view in your web browser at `http://localhost:8000/index.html`.
+and view in your web browser at [http://localhost:8000](http://localhost:8000).
+
+> [!NOTE]
+> To generate the documentation, you need to have Zig (version 0.14.1) and Python 3 installed on your system.
 
 ### Examples
 
-| **#** | **File**                                                  | **Description**                                                          |
-|-------|-----------------------------------------------------------|--------------------------------------------------------------------------|
-| 1     | [e1_simple_cli.zig](examples/e1_simple_cli.zig)           | A simple CLI application that shows basic command and flag parsing       |
-| 2     | [e2_nested_commands.zig](examples/e2_nested_commands.zig) | A CLI application with nested commands and subcommands                   |
-| 3     | [e3_help_output.zig](examples/e3_help_output.zig)         | An example that demonstrates automatic help output and usage information |
-| 4     | [e4_custom_sections.zig](examples/e4_custom_sections.zig) | An example that demonstrates grouping subcommands into custom sections   |
-| 5     | [e5_advanced_cli.zig](examples/e5_advanced_cli.zig)       | An example that combines multiple features of Chilli                     |
-| 6     | [e6_file_downloader.zig](examples/e6_file_downloader.zig) | A CLI application that downloads files from the internet                 |
-| 7     | [e7_calculator.zig](examples/e7_calculator.zig)           | A simple calculator CLI that supports basic arithmetic operations        |
-| 8     | [e8_flags_and_args.zig](examples/e8_flags_and_args.zig)   | Example shows how to use flags and positional arguments in commands      |
+Check out the [examples](examples/README.md) directory for examples of how Chilli can be used to build a variety of CLI
+applications.
 
 ### Feature Roadmap
 
@@ -195,7 +190,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to make a contribution
 
 ### License
 
-Chilli is licensed under the MIT License ([LICENSE](LICENSE)).
+Chilli is licensed under the MIT License (see [LICENSE](LICENSE)).
 
 ### Acknowledgements
 
