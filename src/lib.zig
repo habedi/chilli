@@ -1,4 +1,4 @@
-//! Chilli is a command-line interface (CLI) miniframework for Zig.
+//! Chilli is a command-line interface (CLI) miniframework for Zig progamming language.
 //!
 //! It provides a structured and type-safe way to build complex command-line applications
 //! with support for commands, subcommands, flags, and positional arguments.
