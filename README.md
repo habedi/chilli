@@ -147,6 +147,9 @@ from the source code.
 This will generate HTML documentation in the `docs/api` directory, which you can serve locally with `make serve-docs`
 and view in your web browser at [http://localhost:8000](http://localhost:8000).
 
+> [!NOTE]
+> To generate the documentation, you need to have Zig (version 0.14.1) and Python 3 installed on your system.
+
 ### Examples
 
 Check out the [examples](examples/README.md) directory for examples of how Chilli can be used to build a variety of CLI
