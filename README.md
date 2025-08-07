@@ -10,7 +10,7 @@
 [![CodeFactor](https://img.shields.io/codefactor/grade/github/habedi/chilli?label=code%20quality&style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/chilli)
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
 [![Docs](https://img.shields.io/github/v/tag/habedi/chilli?label=docs&color=blue&style=flat&labelColor=282c34&logo=read-the-docs)](https://habedi.github.io/chilli/)
-[![Examples](https://img.shields.io/github/v/tag/habedi/chilli?label=examples&color=green&style=flat&labelColor=282c34&logo=zig)](https://github.com/habedi/chilli/tree/main/examples)
+[![Examples](https://img.shields.io/github/v/tag/habedi/chilli?label=examples&color=green&style=flat&labelColor=282c34&logo=zig)](https://github.com/habedi/chilli/tree/main/examples/README.md)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
 
@@ -147,12 +147,9 @@ from the source code.
 This will generate HTML documentation in the `docs/api` directory, which you can serve locally with `make serve-docs`
 and view in your web browser at [http://localhost:8000](http://localhost:8000).
 
-> [!NOTE]
-> To generate the documentation, you need to have Zig (version 0.14.1) and Python 3 installed on your system.
-
 ### Examples
 
-Check out the [examples](examples/README.md) directory for examples of how Chilli can be used to build a variety of CLI
+Check out the [examples](examples/) directory for examples of how Chilli can be used to build a variety of CLI
 applications.
 
 ### Feature Roadmap
