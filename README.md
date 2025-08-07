@@ -33,10 +33,6 @@ while being small and fast, and not getting in the way of your application logic
 - Uses a shared context to pass application state
 - Written in pure Zig with no external dependencies
 
-> [!IMPORTANT]
-> Chilli is in early development so the API may (slightly) change in the newer releases.
-> Please use the [issues page](https://github.com/habedi/chilli/issues) to report bugs or request features.
-
 ---
 
 ### Getting Started
@@ -144,9 +140,12 @@ pub fn main() anyerror!void {
 
 ### Documentation
 
-You can use the `make docs` command to generate the API documentation for Chilli.
+You can find the full API documentation for the latest release of Chilli [here](https://habedi.github.io/chilli/).
+
+Alternatively, you can use the `make docs` command to generate the API documentation for the current version of Chilli
+from the source code.
 This will generate HTML documentation in the `docs/api` directory, which you can serve locally with `make serve-docs`
-and view in your web browser at `http://localhost:8000/index.html`.
+and view in your web browser at [http://localhost:8000](http://localhost:8000).
 
 ### Examples
 
