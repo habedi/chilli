@@ -32,8 +32,7 @@ while being small and fast, and not getting in the way of your application logic
 - Written in pure Zig with no external dependencies
 
 > [!IMPORTANT]
-> Chilli is in early development and is not yet ready for serious use.
-> The API is not stable and may change without notice.
+> Chilli is in early development so the API may slightly change in the newer releases.
 > Please use the [issues page](https://github.com/habedi/chilli/issues) to report bugs or request features.
 
 ---
@@ -195,7 +194,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to make a contribution
 
 ### License
 
-Chilli is licensed under the MIT License ([LICENSE](LICENSE)).
+Chilli is licensed under the MIT License (see [LICENSE](LICENSE)).
 
 ### Acknowledgements
 
