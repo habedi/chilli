@@ -10,7 +10,6 @@
 [![CodeFactor](https://img.shields.io/codefactor/grade/github/habedi/chilli?label=code%20quality&style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/chilli)
 [![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
 [![Docs](https://img.shields.io/github/v/tag/habedi/chilli?label=docs&color=blue&style=flat&labelColor=282c34&logo=read-the-docs)](https://habedi.github.io/chilli/)
-[![Examples](https://img.shields.io/github/v/tag/habedi/chilli?label=examples&color=green&style=flat&labelColor=282c34&logo=zig)](https://github.com/habedi/chilli/tree/main/examples/README.md)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-007ec6?label=license&style=flat&labelColor=282c34&logo=open-source-initiative)](https://github.com/habedi/chilli/blob/main/LICENSE)
 
@@ -47,7 +46,8 @@ Run the following command in the root directory of your project to download Chil
 zig fetch --save=chilli "https://github.com/habedi/chilli/archive/<branch_or_tag>.tar.gz"
 ```
 
-Replace `<branch_or_tag>` with the desired branch or tag, like `main` or `v0.1.0`.
+Replace `<branch_or_tag>` with the desired branch or tag, like `main` (for the development version) or `v0.1.0`
+(for the latest release).
 This command will download Chilli and add it to Zig's global cache and update your project's `build.zig.zon` file.
 
 #### Adding to Build Script
@@ -134,6 +134,23 @@ pub fn main() anyerror!void {
     // Hand control over to the framework
     try root_cmd.run(null);
 }
+```
+
+You can now run your CLI application with the `--help` flag to see the output below:
+
+```bash
+$ ./your-cli-app --help
+your-cli-app v0.1.0
+A new CLI built with Chilli
+
+USAGE:
+    your-cli-app [FLAGS]
+
+FLAGS:
+    -n, --name <string>      The name to greet [default: World]
+        --excitement <int>   How excited to be [default: 1]
+    -h, --help               Prints help information
+    -V, --version            Prints version information
 ```
 
 ---
