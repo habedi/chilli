@@ -135,6 +135,23 @@ pub fn main() anyerror!void {
 }
 ```
 
+You can now run your CLI application with the `--help` flag to see the output below:
+
+```bash
+$ ./your-cli-app --help
+your-cli-app v0.1.0
+A new CLI built with Chilli
+
+USAGE:
+    your-cli-app [FLAGS]
+
+FLAGS:
+    -n, --name <string>      The name to greet [default: World]
+        --excitement <int>   How excited to be [default: 1]
+    -h, --help               Prints help information
+    -V, --version            Prints version information
+```
+
 ---
 
 ### Documentation
