@@ -43,7 +43,7 @@ build: ## Build project (Mode=$(BUILD_TYPE))
 
 rebuild: clean build  ## clean and build
 
-run: ## Run an example (e.g. 'make run EXAMPLE=trie' or 'make run' for all)
+run: ## Run an example (e.g. 'make run EXAMPLE=e1_simple_cli' or 'make run' for all)
 	@if [ "$(EXAMPLE)" = "all" ]; then \
 	   echo "--> Running all examples..."; \
 	   for ex in $(EXAMPLES); do \
