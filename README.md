@@ -46,7 +46,8 @@ Run the following command in the root directory of your project to download Chil
 zig fetch --save=chilli "https://github.com/habedi/chilli/archive/<branch_or_tag>.tar.gz"
 ```
 
-Replace `<branch_or_tag>` with the desired branch or tag, like `main` or `v0.1.0`.
+Replace `<branch_or_tag>` with the desired branch or tag, like `main` (for the development version) or `v0.1.0`
+(for the latest release).
 This command will download Chilli and add it to Zig's global cache and update your project's `build.zig.zon` file.
 
 #### Adding to Build Script
