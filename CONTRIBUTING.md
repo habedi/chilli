@@ -20,7 +20,7 @@ would like to work on or if it has already been resolved.
 
 ## Submitting Pull Requests
 
-- Ensure all tests pass before submitting a pull request.
+- Make sure all tests pass before submitting a pull request.
 - Write a clear description of the changes you made and the reasons behind them.
 
 > [!IMPORTANT]
@@ -57,4 +57,4 @@ sudo apt-get install make
 
 ## Code of Conduct
 
-We adhere to the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) version 2.1.
+We adhere to the project's [Code of Conduct](CODE_OF_CONDUCT.md).
