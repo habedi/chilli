@@ -197,7 +197,7 @@ pub const CommandContext = struct {
     /// Retrieves a pointer to the shared application context data.
     pub fn getContextData(self: *const CommandContext, comptime T: type) ?*T {
         if (self.data) |d| {
-            return @alignCast(@ptrCast(d));
+            return @ptrCast(@alignCast(d));
         }
         return null;
     }

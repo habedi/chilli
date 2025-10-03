@@ -60,7 +60,7 @@ pub fn main() anyerror!void {
 fn rootExec(ctx: chilli.CommandContext) anyerror!void {
     const app_ctx = ctx.getContextData(AppContext).?;
     const config_slice = try ctx.getFlag("config", []const u8);
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
 
     if (app_ctx.config_path.len > 0) {
         ctx.app_allocator.free(app_ctx.config_path);
@@ -75,7 +75,7 @@ fn rootExec(ctx: chilli.CommandContext) anyerror!void {
 fn runExec(ctx: chilli.CommandContext) anyerror!void {
     const task_name = try ctx.getArg("task-name", []const u8);
     const files = ctx.getArgs("files");
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
 
     try stdout.print("Running task '{s}'...\n", .{task_name});
 

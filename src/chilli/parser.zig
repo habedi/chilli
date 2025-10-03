@@ -62,7 +62,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
 
                 if (flag.type == .Bool) {
                     const flag_value = if (value) |v| try utils.parseBool(v) else true;
-                    try cmd.parsed_flags.append(.{
+                    try cmd.parsed_flags.append(cmd.allocator, .{
                         .name = flag_name,
                         .value = .{ .Bool = flag_value },
                     });
@@ -73,7 +73,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
                     if (value == null) {
                         iterator.next();
                     }
-                    try cmd.parsed_flags.append(.{
+                    try cmd.parsed_flags.append(cmd.allocator, .{
                         .name = flag_name,
                         .value = try types.parseValue(flag.type, val),
                     });
@@ -89,7 +89,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
                     const flag = cmd.findFlagByShortcut(shortcut) orelse return errors.Error.UnknownFlag;
 
                     if (flag.type == .Bool) {
-                        try cmd.parsed_flags.append(.{ .name = flag.name, .value = .{ .Bool = true } });
+                        try cmd.parsed_flags.append(cmd.allocator, .{ .name = flag.name, .value = .{ .Bool = true } });
                     } else {
                         var value: []const u8 = undefined;
                         var value_from_next_arg = false;
@@ -105,7 +105,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
                             iterator.next();
                         }
 
-                        try cmd.parsed_flags.append(.{
+                        try cmd.parsed_flags.append(cmd.allocator, .{
                             .name = flag.name,
                             .value = try types.parseValue(flag.type, value),
                         });
@@ -116,7 +116,7 @@ pub fn parseArgsAndFlags(cmd: *command.Command, iterator: *ArgIterator) errors.E
             }
         }
 
-        try cmd.parsed_positionals.append(arg);
+        try cmd.parsed_positionals.append(cmd.allocator, arg);
         iterator.next();
     }
 }

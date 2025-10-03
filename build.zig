@@ -8,16 +8,23 @@ pub fn build(b: *std.Build) void {
     // --- Library Setup ---
     const lib_source = b.path("src/lib.zig");
 
-    const lib = b.addStaticLibrary(.{
-        .name = "chilli",
+    const lib_module = b.createModule(.{
         .root_source_file = lib_source,
         .target = target,
         .optimize = optimize,
     });
+
+    const lib = b.addLibrary(.{
+        .name = "chilli",
+        .root_module = lib_module,
+    });
     b.installArtifact(lib);
 
-    const lib_module = b.createModule(.{
+    // Export the module so downstream projects can use it
+    _ = b.addModule("chilli", .{
         .root_source_file = lib_source,
+        .target = target,
+        .optimize = optimize,
     });
 
     // --- Docs Setup ---
@@ -39,10 +46,14 @@ pub fn build(b: *std.Build) void {
     docs_step.dependOn(&gen_docs_cmd.step);
 
     // --- Test Setup ---
-    const lib_unit_tests = b.addTest(.{
+    const test_module = b.createModule(.{
         .root_source_file = lib_source,
         .target = target,
         .optimize = optimize,
+    });
+
+    const lib_unit_tests = b.addTest(.{
+        .root_module = test_module,
     });
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
@@ -61,13 +72,17 @@ pub fn build(b: *std.Build) void {
         const exe_name = fs.path.stem(entry.name);
         const exe_path = b.fmt("{s}/{s}", .{ examples_path, entry.name });
 
-        const exe = b.addExecutable(.{
-            .name = exe_name,
+        const exe_module = b.createModule(.{
             .root_source_file = b.path(exe_path),
             .target = target,
             .optimize = optimize,
         });
-        exe.root_module.addImport("chilli", lib_module);
+        exe_module.addImport("chilli", lib_module);
+
+        const exe = b.addExecutable(.{
+            .name = exe_name,
+            .root_module = exe_module,
+        });
         b.installArtifact(exe);
 
         const run_cmd = b.addRunArtifact(exe);
