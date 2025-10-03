@@ -2,11 +2,6 @@
 name = "chilli"
 version = "0.1.0"
 description = "Python environment for Chilli"
-readme = "README.md"
-license = { text = "MIT" }
-authors = [
-    { name = "Hassan Abedi", email = "hassan.abedi.t@gmail.com" }
-]
 
 requires-python = ">=3.10,<4.0"
 dependencies = [
