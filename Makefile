@@ -1,7 +1,7 @@
 # ################################################################################
 # # Configuration and Variables
 # ################################################################################
-ZIG    ?= $(shell which zig || echo ~/.local/share/zig/0.14.1/zig)
+ZIG    ?= $(shell which zig || echo ~/.local/share/zig/0.15.1/zig)
 BUILD_TYPE    ?= Debug
 BUILD_OPTS      = -Doptimize=$(BUILD_TYPE)
 JOBS          ?= $(shell nproc || echo 2)
