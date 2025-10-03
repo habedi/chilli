@@ -65,8 +65,12 @@ pub fn build(b: *std.Build) void {
     // 1. Get the dependency object from the builder
     const chilli_dep = b.dependency("chilli", .{});
 
-    // 2. Create a module for the dependency
-    const chilli_module = chilli_dep.module("chilli");
+    // 2. Create a module for the dependency directly from its source file
+    const chilli_module = b.createModule(.{
+        .root_source_file = chilli_dep.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     // 3. Create your executable module and add chilli as import
     const exe_module = b.createModule(.{
