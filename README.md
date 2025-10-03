@@ -8,7 +8,7 @@
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/habedi/chilli/tests.yml?label=tests&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/actions/workflows/tests.yml)
 [![CodeFactor](https://img.shields.io/codefactor/grade/github/habedi/chilli?label=code%20quality&style=flat&labelColor=282c34&logo=codefactor)](https://www.codefactor.io/repository/github/habedi/chilli)
-[![Zig Version](https://img.shields.io/badge/Zig-0.14.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
+[![Zig Version](https://img.shields.io/badge/Zig-0.15.1-orange?logo=zig&labelColor=282c34)](https://ziglang.org/download/)
 [![Docs](https://img.shields.io/badge/docs-view-blue?style=flat&labelColor=282c34&logo=read-the-docs)](https://habedi.github.io/chilli/)
 [![Examples](https://img.shields.io/badge/examples-view-green?style=flat&labelColor=282c34&logo=zig)](https://github.com/habedi/chilli/tree/main/examples)
 [![Release](https://img.shields.io/github/release/habedi/chilli.svg?label=release&style=flat&labelColor=282c34&logo=github)](https://github.com/habedi/chilli/releases/latest)
@@ -47,7 +47,7 @@ Run the following command in the root directory of your project to download Chil
 zig fetch --save=chilli "https://github.com/habedi/chilli/archive/<branch_or_tag>.tar.gz"
 ```
 
-Replace `<branch_or_tag>` with the desired branch or tag, like `main` (for the development version) or `v0.1.0`
+Replace `<branch_or_tag>` with the desired branch or tag, like `main` (for the development version) or `v0.2.0`
 (for the latest release).
 This command will download Chilli and add it to Zig's global cache and update your project's `build.zig.zon` file.
 
@@ -62,21 +62,25 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "your-cli-app",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
     // 1. Get the dependency object from the builder
     const chilli_dep = b.dependency("chilli", .{});
 
     // 2. Create a module for the dependency
-    const chilli_module = b.createModule(.{ .root_source_file = chilli_dep.path("src/lib.zig") });
+    const chilli_module = chilli_dep.module("chilli");
 
-    // 3. Add the module to your executable so you can @import("chilli")
-    exe.root_module.addImport("chilli", chilli_module);
+    // 3. Create your executable module and add chilli as import
+    const exe_module = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    exe_module.addImport("chilli", chilli_module);
+
+    // 4. Create executable with the module
+    const exe = b.addExecutable(.{
+        .name = "your-cli-app",
+        .root_module = exe_module,
+    });
 
     b.installArtifact(exe);
 }
@@ -141,7 +145,7 @@ You can now run your CLI application with the `--help` flag to see the output be
 
 ```bash
 $ ./your-cli-app --help
-your-cli-app v0.1.0
+your-cli-app v0.2.0
 A new CLI built with Chilli
 
 USAGE:

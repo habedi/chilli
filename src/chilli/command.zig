@@ -38,13 +38,13 @@ pub const Command = struct {
         const command = try allocator.create(Command);
         command.* = Command{
             .options = options,
-            .subcommands = std.ArrayList(*Command).init(allocator),
-            .flags = std.ArrayList(types.Flag).init(allocator),
-            .positional_args = std.ArrayList(types.PositionalArg).init(allocator),
+            .subcommands = .{},
+            .flags = .{},
+            .positional_args = .{},
             .parent = null,
             .allocator = allocator,
-            .parsed_flags = std.ArrayList(parser.ParsedFlag).init(allocator),
-            .parsed_positionals = std.ArrayList([]const u8).init(allocator),
+            .parsed_flags = .{},
+            .parsed_positionals = .{},
         };
 
         const help_flag = types.Flag{
@@ -69,11 +69,11 @@ pub const Command = struct {
         for (self.subcommands.items) |sub| {
             sub.deinit();
         }
-        self.subcommands.deinit();
-        self.flags.deinit();
-        self.positional_args.deinit();
-        self.parsed_flags.deinit();
-        self.parsed_positionals.deinit();
+        self.subcommands.deinit(self.allocator);
+        self.flags.deinit(self.allocator);
+        self.positional_args.deinit(self.allocator);
+        self.parsed_flags.deinit(self.allocator);
+        self.parsed_positionals.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -92,7 +92,7 @@ pub const Command = struct {
         }
 
         sub.parent = self;
-        try self.subcommands.append(sub);
+        try self.subcommands.append(self.allocator, sub);
     }
 
     /// Adds a flag to the command. Panics if the flag name is empty.
@@ -114,7 +114,7 @@ pub const Command = struct {
             }
         }
 
-        try self.flags.append(flag);
+        try self.flags.append(self.allocator, flag);
     }
 
     /// Adds a positional argument to the command's definition.
@@ -141,7 +141,7 @@ pub const Command = struct {
             }
         }
 
-        try self.positional_args.append(arg);
+        try self.positional_args.append(self.allocator, arg);
     }
 
     /// Parses arguments and executes the appropriate command. This is the core logic loop.
@@ -169,11 +169,9 @@ pub const Command = struct {
         current_cmd.parsed_positionals.shrinkRetainingCapacity(0);
 
         try parser.parseArgsAndFlags(current_cmd, &arg_iterator);
-        try parser.validateArgs(current_cmd);
 
-        // Success, clear the out_failed_cmd
-        out_failed_cmd.* = null;
-
+        // Check for --help and --version flags BEFORE validation
+        // This allows users to see help even if required arguments are missing
         if (current_cmd.getFlagValue("help")) |flag_val| {
             if (flag_val.Bool) {
                 try current_cmd.printHelp();
@@ -184,12 +182,17 @@ pub const Command = struct {
         if (self.options.version != null) {
             if (current_cmd.getFlagValue("version")) |flag_val| {
                 if (flag_val.Bool) {
-                    const stdout = std.io.getStdOut().writer();
+                    const stdout = std.fs.File.stdout().deprecatedWriter();
                     try stdout.print("{s}\n", .{self.options.version.?});
                     return;
                 }
             }
         }
+
+        try parser.validateArgs(current_cmd);
+
+        // Success, clear the out_failed_cmd
+        out_failed_cmd.* = null;
 
         const ctx = context.CommandContext{
             .app_allocator = self.allocator,
@@ -276,7 +279,7 @@ pub const Command = struct {
 
         var failed_cmd: ?*const Command = null;
         self.execute(args[1..], data, &failed_cmd) catch |err| {
-            const stderr = std.io.getStdErr().writer();
+            const stderr = std.fs.File.stderr().deprecatedWriter();
             handleExecutionError(self.allocator, err, failed_cmd, stderr);
             std.process.exit(1);
         };
@@ -285,12 +288,12 @@ pub const Command = struct {
     /// (private) Constructs the full command path (e.g., "root sub") for use in help and error messages.
     /// The returned slice is allocated using the provided allocator and must be freed by the caller.
     fn getCommandPath(self: *const Command, allocator: std.mem.Allocator) ![]const u8 {
-        var path_parts = std.ArrayList([]const u8).init(allocator);
-        defer path_parts.deinit();
+        var path_parts: std.ArrayList([]const u8) = .{};
+        defer path_parts.deinit(allocator);
 
         var current: ?*const Command = self;
         while (current) |cmd| {
-            try path_parts.append(cmd.options.name);
+            try path_parts.append(allocator, cmd.options.name);
             current = cmd.parent;
         }
         std.mem.reverse([]const u8, path_parts.items);
@@ -357,7 +360,7 @@ pub const Command = struct {
 
     /// Prints a formatted help message for the command to standard output.
     pub fn printHelp(self: *const Command) !void {
-        const stdout = std.io.getStdOut().writer();
+        const stdout = std.fs.File.stdout().deprecatedWriter();
         try stdout.print("{s}{s}{s}\n", .{ utils.styles.BOLD, self.options.description, utils.styles.RESET });
 
         if (self.options.version) |version| {

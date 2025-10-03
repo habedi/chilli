@@ -9,7 +9,7 @@ fn addExec(ctx: CommandContext) !void {
     const a = try ctx.getArg("a", f64);
     const b = try ctx.getArg("b", f64);
     const result = a + b;
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
     try stdout.print("{d} + {d} = {d}\n", .{ a, b, result });
 }
 
@@ -17,7 +17,7 @@ fn subtractExec(ctx: CommandContext) !void {
     const a = try ctx.getArg("a", f64);
     const b = try ctx.getArg("b", f64);
     const result = a - b;
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
     try stdout.print("{d} - {d} = {d}\n", .{ a, b, result });
 }
 
@@ -25,7 +25,7 @@ fn multiplyExec(ctx: CommandContext) !void {
     const a = try ctx.getArg("a", f64);
     const b = try ctx.getArg("b", f64);
     const result = a * b;
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
     try stdout.print("{d} * {d} = {d}\n", .{ a, b, result });
 }
 

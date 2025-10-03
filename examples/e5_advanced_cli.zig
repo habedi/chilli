@@ -29,7 +29,7 @@ fn addExec(ctx: chilli.CommandContext) !void {
     const precision = try ctx.getFlag("precision", f64);
     const result = @as(f64, @floatFromInt(a)) + @as(f64, @floatFromInt(b));
 
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
     const precision_int: u32 = @intFromFloat(@max(0.0, @min(precision, 20.0)));
 
     var buf: [64]u8 = undefined;
@@ -43,7 +43,7 @@ fn addExec(ctx: chilli.CommandContext) !void {
 
 fn greetExec(ctx: chilli.CommandContext) !void {
     const name = try ctx.getArg("name", []const u8);
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
     try stdout.print("Hello, {s}!\n", .{name});
 }
 

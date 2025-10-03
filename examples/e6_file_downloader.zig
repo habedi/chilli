@@ -28,50 +28,42 @@ fn downloadExec(ctx: chilli.CommandContext) !void {
         std.debug.print("Output file: {s}\n", .{output_path});
     }
 
+    // Parse URI and create request
     const uri = try std.Uri.parse(url);
-
-    var server_header_buffer: [16 * 1024]u8 = undefined;
-    var req = try download_ctx.client.open(.GET, uri, .{
-        .server_header_buffer = &server_header_buffer,
-    });
+    var req = try download_ctx.client.request(.GET, uri, .{});
     defer req.deinit();
 
-    try req.send();
-    try req.finish();
-    try req.wait();
+    // Send request
+    try req.sendBodiless();
 
-    if (req.response.status != .ok) {
-        std.debug.print("Error: HTTP {d} - {s}\n", .{ @intFromEnum(req.response.status), @tagName(req.response.status) });
+    // Receive response headers
+    var redirect_buf: [1024]u8 = undefined;
+    var response = try req.receiveHead(&redirect_buf);
+
+    if (response.head.status != .ok) {
+        std.debug.print("Error: HTTP {d} - {s}\n", .{ @intFromEnum(response.head.status), @tagName(response.head.status) });
         return error.HttpRequestFailed;
     }
 
-    const file = try std.fs.cwd().createFile(output_path, .{});
-    defer file.close();
+    // Read response body
+    var buf: [8192]u8 = undefined;
+    var body_reader = response.reader(&buf);
 
-    var buffer: [8192]u8 = undefined;
-    var total_bytes: u64 = 0;
+    var response_body: std.ArrayList(u8) = .{};
+    defer response_body.deinit(ctx.app_allocator);
 
-    while (true) {
-        const bytes_read = req.reader().read(&buffer) catch |err| {
-            if (err == error.EndOfStream) break;
-            return err;
-        };
-
-        if (bytes_read == 0) break;
-
-        try file.writeAll(buffer[0..bytes_read]);
-        total_bytes += bytes_read;
-
-        if (verbose) {
-            std.debug.print("Downloaded: {d} bytes\r", .{total_bytes});
-        }
-    }
+    try body_reader.appendRemainingUnlimited(ctx.app_allocator, &response_body);
 
     if (verbose) {
-        std.debug.print("\n", .{});
+        std.debug.print("Downloaded {d} bytes\n", .{response_body.items.len});
     }
 
-    std.debug.print("Download complete: {s} ({d} bytes)\n", .{ output_path, total_bytes });
+    // Write to file
+    const file = try std.fs.cwd().createFile(output_path, .{});
+    defer file.close();
+    try file.writeAll(response_body.items);
+
+    std.debug.print("Download complete: {s} ({d} bytes)\n", .{ output_path, response_body.items.len });
 }
 
 fn getFilenameFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]const u8 {

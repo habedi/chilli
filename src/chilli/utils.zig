@@ -119,12 +119,12 @@ pub fn printAlignedPositionalArgs(cmd: *const command.Command, writer: anytype) 
 
 /// Prints the full usage line for a command, including its parents.
 pub fn printUsageLine(cmd: *const command.Command, writer: anytype) !void {
-    var parents = std.ArrayList(*command.Command).init(cmd.allocator);
-    defer parents.deinit();
+    var parents: std.ArrayList(*command.Command) = .{};
+    defer parents.deinit(cmd.allocator);
 
     var current_parent = cmd.parent;
     while (current_parent) |p| {
-        try parents.append(p);
+        try parents.append(cmd.allocator, p);
         current_parent = p.parent;
     }
     std.mem.reverse(*command.Command, parents.items);
@@ -177,22 +177,22 @@ pub fn printSubcommands(cmd: *const command.Command, writer: anytype) !void {
     var section_map = std.StringHashMap(std.ArrayList(*command.Command)).init(cmd.allocator);
     defer {
         var it = section_map.iterator();
-        while (it.next()) |entry| entry.value_ptr.*.deinit();
+        while (it.next()) |entry| entry.value_ptr.*.deinit(cmd.allocator);
         section_map.deinit();
     }
 
     for (cmd.subcommands.items) |sub| {
         const list = try section_map.getOrPut(sub.options.section);
         if (!list.found_existing) {
-            list.value_ptr.* = std.ArrayList(*command.Command).init(cmd.allocator);
+            list.value_ptr.* = .{};
         }
-        try list.value_ptr.*.append(sub);
+        try list.value_ptr.*.append(cmd.allocator, sub);
     }
 
-    var sorted_sections = std.ArrayList([]const u8).init(cmd.allocator);
-    defer sorted_sections.deinit();
+    var sorted_sections: std.ArrayList([]const u8) = .{};
+    defer sorted_sections.deinit(cmd.allocator);
     var it = section_map.keyIterator();
-    while (it.next()) |key| try sorted_sections.append(key.*);
+    while (it.next()) |key| try sorted_sections.append(cmd.allocator, key.*);
     std.sort.pdq([]const u8, sorted_sections.items, StringSortContext{}, StringSortContext.lessThan);
 
     for (sorted_sections.items) |section_name| {

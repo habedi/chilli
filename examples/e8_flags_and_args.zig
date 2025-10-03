@@ -10,7 +10,7 @@ fn exec(ctx: chilli.CommandContext) !void {
     const optional_arg = try ctx.getArg("optional-arg", []const u8);
     const variadic_args = ctx.getArgs("variadic-args");
 
-    const stdout = std.io.getStdOut().writer();
+    const stdout = std.fs.File.stdout().deprecatedWriter();
 
     try stdout.print("Flags:\n", .{});
     try stdout.print("  --count: {d}\n", .{count});
@@ -20,7 +20,7 @@ fn exec(ctx: chilli.CommandContext) !void {
     try stdout.print("\nArguments:\n", .{});
     try stdout.print("  required-arg: {s}\n", .{required_arg});
     try stdout.print("  optional-arg: {s}\n", .{optional_arg});
-    try stdout.print("  variadic-args: {s}\n", .{variadic_args});
+    try stdout.print("  variadic-args: {any}\n", .{variadic_args});
 }
 
 pub fn main() anyerror!void {
